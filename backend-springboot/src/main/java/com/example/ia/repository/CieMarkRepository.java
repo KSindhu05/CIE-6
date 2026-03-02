@@ -15,6 +15,9 @@ public interface CieMarkRepository extends JpaRepository<CieMark, Long> {
 
     List<CieMark> findBySubject_Id(Long subjectId);
 
+    @org.springframework.transaction.annotation.Transactional
+    void deleteBySubject_Id(Long subjectId);
+
     Optional<CieMark> findByStudent_IdAndSubject_IdAndCieType(Long studentId, Long subjectId, String cieType);
 
     List<CieMark> findByStatus(String status);

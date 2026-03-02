@@ -12,5 +12,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     List<Attendance> findBySubjectId(Long subjectId);
 
     @org.springframework.transaction.annotation.Transactional
+    void deleteBySubjectId(Long subjectId);
+
+    @org.springframework.transaction.annotation.Transactional
     void deleteByFaculty(com.example.ia.entity.User faculty);
 }

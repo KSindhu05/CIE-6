@@ -1,10 +1,14 @@
 package com.example.ia.controller;
 
 import com.example.ia.entity.Subject;
+import com.example.ia.repository.AnnouncementRepository;
+import com.example.ia.repository.AttendanceRepository;
+import com.example.ia.repository.CieMarkRepository;
 import com.example.ia.repository.SubjectRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +21,15 @@ public class SubjectController {
 
     @Autowired
     SubjectRepository subjectRepository;
+
+    @Autowired
+    CieMarkRepository cieMarkRepository;
+
+    @Autowired
+    AttendanceRepository attendanceRepository;
+
+    @Autowired
+    AnnouncementRepository announcementRepository;
 
     @GetMapping("/department/{department}")
     @PreAuthorize("hasRole('HOD') or hasRole('PRINCIPAL') or hasRole('FACULTY')")
@@ -69,10 +82,16 @@ public class SubjectController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('HOD')")
+    @Transactional
     public ResponseEntity<?> deleteSubject(@PathVariable Long id) {
         if (subjectRepository.existsById(id)) {
+            // Delete related records first to avoid foreign key constraints
+            cieMarkRepository.deleteBySubject_Id(id);
+            attendanceRepository.deleteBySubjectId(id);
+            announcementRepository.deleteBySubjectId(id);
+
             subjectRepository.deleteById(id);
-            return ResponseEntity.ok(Map.of("message", "Subject deleted successfully"));
+            return ResponseEntity.ok(Map.of("message", "Subject deleted successfully (cascading cleanup completed)"));
         }
         return ResponseEntity.notFound().build();
     }
