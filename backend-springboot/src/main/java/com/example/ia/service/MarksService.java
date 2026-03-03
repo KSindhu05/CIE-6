@@ -128,7 +128,7 @@ public class MarksService {
     @Transactional(readOnly = true)
     public List<CieMark> getMarksByStudentUsername(String username) {
         // Username for student is their RegNo
-        Student student = studentRepository.findByRegNo(username).orElse(null);
+        Student student = studentRepository.findByRegNoIgnoreCase(username).orElse(null);
         if (student == null) {
             return List.of();
         }

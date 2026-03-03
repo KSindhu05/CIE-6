@@ -255,7 +255,7 @@ const StudentDashboard = () => {
                                     return (
                                         <tr key={idx} style={{ animation: `fadeIn 0.4s ease-out ${idx * 0.1}s backwards` }}>
                                             <td><div className={styles.subjectCell}><span style={{ fontWeight: 600 }}>{sub.name}</span><br /><span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{sub.code}</span></div></td>
-                                            <td>{mark.cie1Score != null ? mark.cie1Score : '-'}</td>
+                                            <td>{mark.cie1Score != null ? mark.cie1Score + '/50' : '-'}</td>
                                             <td>{mark.cie1Att != null ? mark.cie1Att + '%' : '-'}</td>
                                             <td style={{ minWidth: '150px' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
