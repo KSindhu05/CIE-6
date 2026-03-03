@@ -181,7 +181,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             };
 
-            const response = await fetch(`${API_BASE_URL}/notifications`, {
+            const response = await fetch(`${API_BASE_URL}/notifications/direct`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({

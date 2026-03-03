@@ -199,4 +199,48 @@ public class NotificationController {
 
         return ResponseEntity.ok(Map.of("message", "Notification sent to student " + studentRegNo));
     }
+
+    @PostMapping("/direct")
+    @PreAuthorize("hasRole('HOD') or hasRole('PRINCIPAL')")
+    public ResponseEntity<?> sendDirectNotification(@RequestBody Map<String, Object> data) {
+        String senderUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User sender = userRepository.findByUsernameIgnoreCase(senderUsername).orElse(null);
+        if (sender == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Sender not found"));
+        }
+
+        Object userIdObj = data.get("userId");
+        String message = (String) data.get("message");
+        if (userIdObj == null || message == null || message.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "userId and message are required"));
+        }
+
+        Long targetUserId = Long.valueOf(userIdObj.toString());
+        User target = userRepository.findById(targetUserId).orElse(null);
+        if (target == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Target user not found"));
+        }
+
+        String senderLabel = "PRINCIPAL".equalsIgnoreCase(sender.getRole())
+                ? "Principal"
+                : ("HOD - " + sender.getDepartment());
+
+        // Send notification to recipient
+        Notification notif = new Notification();
+        notif.setUser(target);
+        notif.setMessage(message);
+        notif.setType((String) data.getOrDefault("type", "INFO"));
+        notif.setCategory((String) data.getOrDefault("category", senderLabel));
+        notificationRepository.save(notif);
+
+        // Save a sent copy for the sender
+        Notification sentCopy = new Notification();
+        sentCopy.setUser(sender);
+        sentCopy.setMessage(message);
+        sentCopy.setType("SENT");
+        sentCopy.setCategory("📤 Sent to " + target.getFullName());
+        notificationRepository.save(sentCopy);
+
+        return ResponseEntity.ok(Map.of("message", "Message sent to " + target.getFullName()));
+    }
 }
