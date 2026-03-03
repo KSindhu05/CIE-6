@@ -1,64 +1,91 @@
 import React from 'react';
-import { Lightbulb, ArrowUpRight, ArrowDownRight, CheckCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Lightbulb, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import styles from '../../../pages/StudentDashboard.module.css';
+
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.12,
+            delayChildren: 0.2,
+        },
+    },
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, x: 20 },
+    visible: {
+        opacity: 1,
+        x: 0,
+        transition: { duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] },
+    },
+};
 
 const AcademicInsights = ({ realMarks }) => {
     if (!realMarks || realMarks.length === 0) return null;
 
-    // Analyze Data
-    // 1. Best Subject
     const bestSubject = [...realMarks].sort((a, b) => b.totalScore - a.totalScore)[0];
-
-    // 2. Needs Improvement (Lowest Score)
     const worstSubject = [...realMarks].sort((a, b) => a.totalScore - b.totalScore)[0];
 
-    // 3. Attendance Alert
-    // 3. Attendance Alert Removed
-
     return (
-        <div className={styles.insightsCard}>
+        <motion.div
+            className={styles.insightsCard}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+        >
             <div className={styles.insightsHeader}>
-                <div className={styles.insightIconBox}>
+                <motion.div
+                    className={styles.insightIconBox}
+                    initial={{ scale: 0, rotate: -30 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ duration: 0.5, delay: 0.5, type: 'spring', stiffness: 200 }}
+                >
                     <Lightbulb size={20} color="#F59E0B" />
-                </div>
+                </motion.div>
                 <h3 className={styles.cardTitle} style={{ marginBottom: 0 }}>System Academic Analysis</h3>
             </div>
 
-            <div className={styles.insightsList}>
+            <motion.div
+                className={styles.insightsList}
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+            >
                 {/* Strength */}
-                <div className={styles.insightItem}>
+                <motion.div
+                    className={styles.insightItem}
+                    variants={itemVariants}
+                    whileHover={{ x: 6, transition: { duration: 0.2 } }}
+                >
                     <div className={styles.insightIndicator} style={{ background: 'var(--success)' }}></div>
                     <div className={styles.insightContent}>
                         <h4>Strongest Subject</h4>
                         <p>You are excelling in <strong>{bestSubject?.subject?.name}</strong> with a score of {bestSubject?.totalScore}/50.</p>
                     </div>
                     <ArrowUpRight size={18} color="var(--success)" />
-                </div>
+                </motion.div>
 
                 {/* Weakness */}
                 {worstSubject && worstSubject.totalScore < 35 && (
-                    <div className={styles.insightItem}>
+                    <motion.div
+                        className={styles.insightItem}
+                        variants={itemVariants}
+                        whileHover={{ x: 6, transition: { duration: 0.2 } }}
+                    >
                         <div className={styles.insightIndicator} style={{ background: 'var(--danger)' }}></div>
                         <div className={styles.insightContent}>
                             <h4>Focus Area</h4>
                             <p>Consider reviewing <strong>{worstSubject?.subject?.name}</strong> to improve your score ({worstSubject?.totalScore}/50).</p>
                         </div>
                         <ArrowDownRight size={18} color="var(--danger)" />
-                    </div>
+                    </motion.div>
                 )}
-
-
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 };
-
-const AlertIcon = ({ color }) => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="12"></line>
-        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-    </svg>
-);
 
 export default AcademicInsights;
