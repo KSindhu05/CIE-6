@@ -14,6 +14,7 @@ import {
     departmentStats, facultySubjects, facultyProfiles
 } from '../utils/mockData';
 import styles from './HODDashboard.module.css';
+import Skeleton from '../components/ui/Skeleton';
 import {
     Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
     ArcElement, PointElement, LineElement, Filler
@@ -99,6 +100,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
     const [performanceSubjectId, setPerformanceSubjectId] = useState('all');
     const [cieTrendData, setCieTrendData] = useState([0, 0, 0, 0, 0]);
     const [allSubjectPerformance, setAllSubjectPerformance] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     // HOD Performance Tab State (Faculty-style)
     const [hodPerformanceTab, setHodPerformanceTab] = useState('low');
@@ -428,7 +430,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
 
     // Fetch faculty list on mount (needed for overview stat card)
     useEffect(() => {
-        fetchFaculty();
+        setLoading(true);
+        fetchFaculty().finally(() => setLoading(false));
     }, [isMyDept, selectedDept, user]);
 
     // Fetch overview data (real alerts, grade distribution)
@@ -1889,7 +1892,18 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredStudents.length > 0 ? filteredStudents.map((std, index) => (
+                            {loading ? (
+                                Array.from({ length: 8 }).map((_, i) => (
+                                    <tr key={i}>
+                                        <td style={{ color: '#64748b' }}><Skeleton width="20px" height="14px" /></td>
+                                        <td><Skeleton width="150px" height="14px" /></td>
+                                        <td style={{ fontWeight: 600, color: '#1e293b' }}><Skeleton width="100px" height="14px" /></td>
+                                        <td><Skeleton width="80px" height="14px" /></td>
+                                        <td><Skeleton width="100px" height="14px" /></td>
+                                        <td><Skeleton width="100px" height="32px" /></td>
+                                    </tr>
+                                ))
+                            ) : filteredStudents.length > 0 ? filteredStudents.map((std, index) => (
                                 <tr key={std.id}>
                                     <td style={{ color: '#64748b' }}>{index + 1}</td>
                                     <td>{std.name}</td>
@@ -2095,7 +2109,129 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
             )}
             {activeTab === 'all-students' && renderAllStudents()}
             {activeTab === 'student-mgmt' && renderStudentManagement()}
-            {activeTab === 'overview' && (<div className={styles.overviewContainer}><div className={styles.statsRow}><div className={styles.statCard} onClick={() => setActiveTab('all-students')} style={{ cursor: 'pointer' }}><div className={`${styles.iconBox} ${styles.blue}`}><Users size={24} /></div><div className={styles.statInfo}><p>Total Students</p><h3>{deptStudents.length || 0}</h3></div></div><div className={styles.statCard} onClick={() => setActiveTab('faculty')} style={{ cursor: 'pointer' }}><div className={`${styles.iconBox} ${styles.green}`}><Briefcase size={24} /></div><div className={styles.statInfo}><p>Faculty Members</p><h3>{facultyList.length || 0}</h3></div></div><div className={styles.statCard} onClick={() => setActiveTab('performance')} style={{ cursor: 'pointer' }}><div className={`${styles.iconBox} ${styles.purple}`}><FileText size={24} /></div><div className={styles.statInfo}><p>Dept. Average</p><h3>{analytics ? analytics.average : '-'}/50</h3></div></div><div className={styles.statCard} onClick={() => setActiveTab('performance')} style={{ cursor: 'pointer' }}><div className={`${styles.iconBox} ${styles.orange}`}><Activity size={24} /></div><div className={styles.statInfo}><p>Pass Percentage</p><h3>{analytics ? analytics.passPercentage : '-'}%</h3></div></div></div><div className={styles.gridTwoOne}><div className={styles.leftColumn}><div className={styles.card} style={{ marginBottom: '1.5rem' }}><div className={styles.cardHeader}><h3>Department Performance (Avg IA Score)</h3></div><div className={styles.circlesContainer}><div className={styles.circlesContainer}>{analytics ? [{ label: 'Avg Percentage', value: Math.round(((analytics.average || 0) / 50) * 100) }, { label: 'Pass Rate', value: analytics.passPercentage || 0 }, { label: 'Risk Factor', value: (analytics.totalStudents || deptStudents.length) > 0 ? Math.round(((analytics.atRiskCount || 0) / (analytics.totalStudents || deptStudents.length)) * 100) : 0 }].map((metric, index) => { const data = { labels: ['Metric', 'Remaining'], datasets: [{ data: [metric.value, 100 - metric.value], backgroundColor: ['#8b5cf6', '#f3f4f6'], borderWidth: 0, cutout: '70%' }] }; return (<div key={index} className={styles.circleItem}><div style={{ height: '120px', width: '120px', position: 'relative' }}><Doughnut data={data} options={{ ...doughnutOptions, plugins: { legend: { display: false }, tooltip: { enabled: false } } }} /><div className={styles.circleLabel}><span className={styles.circleValue}>{metric.value}%</span></div></div><p className={styles.circleName}>{metric.label}</p></div>); }) : <p style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>Loading Analytics...</p>}</div></div></div></div><div className={styles.rightColumn}><div className={styles.card}><div className={styles.cardHeader}><h3>Recent Alerts</h3>{departmentAlerts.length > 3 && (<button className={styles.secondaryBtn} style={{ fontSize: '0.8rem', padding: '4px 8px' }} onClick={() => setShowAllAlerts(!showAllAlerts)}>{showAllAlerts ? 'Show Less' : 'View All'}</button>)}</div><div className={styles.alertList}>{(showAllAlerts ? departmentAlerts : departmentAlerts.slice(0, 3)).map(alert => (<div key={alert.id} className={`${styles.alertItem} ${styles[alert.type]}`}><AlertTriangle size={16} /><div><p>{alert.message}</p><span>{alert.date}</span></div></div>))}</div></div></div></div></div>)}
+            {activeTab === 'overview' && (
+                <div className={styles.overviewContainer}>
+                    <div className={styles.statsRow}>
+                        {loading ? (
+                            Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className={styles.statCard}>
+                                    <div className={`${styles.iconBox} ${styles.skeleton}`}><Skeleton variant="circle" width="24px" height="24px" /></div>
+                                    <div className={styles.statInfo}>
+                                        <Skeleton width="80px" height="12px" style={{ marginBottom: '4px' }} />
+                                        <Skeleton width="40px" height="24px" />
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <>
+                                <div className={styles.statCard} onClick={() => setActiveTab('all-students')} style={{ cursor: 'pointer' }}>
+                                    <div className={`${styles.iconBox} ${styles.blue}`}><Users size={24} /></div>
+                                    <div className={styles.statInfo}>
+                                        <p>Total Students</p>
+                                        <h3>{deptStudents.length || 0}</h3>
+                                    </div>
+                                </div>
+                                <div className={styles.statCard} onClick={() => setActiveTab('faculty')} style={{ cursor: 'pointer' }}>
+                                    <div className={`${styles.iconBox} ${styles.green}`}><Briefcase size={24} /></div>
+                                    <div className={styles.statInfo}>
+                                        <p>Faculty Members</p>
+                                        <h3>{facultyList.length || 0}</h3>
+                                    </div>
+                                </div>
+                                <div className={styles.statCard} onClick={() => setActiveTab('performance')} style={{ cursor: 'pointer' }}>
+                                    <div className={`${styles.iconBox} ${styles.purple}`}><FileText size={24} /></div>
+                                    <div className={styles.statInfo}>
+                                        <p>Dept. Average</p>
+                                        <h3>{analytics ? analytics.average : '-'}/50</h3>
+                                    </div>
+                                </div>
+                                <div className={styles.statCard} onClick={() => setActiveTab('performance')} style={{ cursor: 'pointer' }}>
+                                    <div className={`${styles.iconBox} ${styles.orange}`}><Activity size={24} /></div>
+                                    <div className={styles.statInfo}>
+                                        <p>Pass Percentage</p>
+                                        <h3>{analytics ? analytics.passPercentage : '-'}%</h3>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <div className={styles.gridTwoOne}>
+                        <div className={styles.leftColumn}>
+                            <div className={styles.card} style={{ marginBottom: '1.5rem' }}>
+                                <div className={styles.cardHeader}>
+                                    <h3>Department Performance (Avg IA Score)</h3>
+                                </div>
+                                <div className={styles.circlesContainer}>
+                                    {loading ? (
+                                        Array.from({ length: 3 }).map((_, i) => (
+                                            <div key={i} className={styles.circleItem}>
+                                                <Skeleton variant="circle" width="120px" height="120px" />
+                                                <Skeleton width="80px" height="14px" style={{ marginTop: '1rem' }} />
+                                            </div>
+                                        ))
+                                    ) : analytics ? (
+                                        [{ label: 'Avg Percentage', value: Math.round(((analytics.average || 0) / 50) * 100) },
+                                        { label: 'Pass Rate', value: analytics.passPercentage || 0 },
+                                        { label: 'Risk Factor', value: (analytics.totalStudents || deptStudents.length) > 0 ? Math.round(((analytics.atRiskCount || 0) / (analytics.totalStudents || deptStudents.length)) * 100) : 0 }]
+                                            .map((metric, index) => {
+                                                const data = { labels: ['Metric', 'Remaining'], datasets: [{ data: [metric.value, 100 - metric.value], backgroundColor: ['#8b5cf6', '#f3f4f6'], borderWidth: 0, cutout: '70%' }] };
+                                                return (
+                                                    <div key={index} className={styles.circleItem}>
+                                                        <div style={{ height: '120px', width: '120px', position: 'relative' }}>
+                                                            <Doughnut data={data} options={{ ...doughnutOptions, plugins: { legend: { display: false }, tooltip: { enabled: false } } }} />
+                                                            <div className={styles.circleLabel}><span className={styles.circleValue}>{metric.value}%</span></div>
+                                                        </div>
+                                                        <p className={styles.circleName}>{metric.label}</p>
+                                                    </div>
+                                                );
+                                            })
+                                    ) : (
+                                        <p style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>No Analytics Found</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.rightColumn}>
+                            <div className={styles.card}>
+                                <div className={styles.cardHeader}>
+                                    <h3>Recent Alerts</h3>
+                                    {departmentAlerts.length > 3 && (
+                                        <button className={styles.secondaryBtn} style={{ fontSize: '0.8rem', padding: '4px 8px' }} onClick={() => setShowAllAlerts(!showAllAlerts)}>
+                                            {showAllAlerts ? 'Show Less' : 'View All'}
+                                        </button>
+                                    )}
+                                </div>
+                                <div className={styles.alertList}>
+                                    {loading ? (
+                                        Array.from({ length: 3 }).map((_, i) => (
+                                            <div key={i} className={styles.alertItem}>
+                                                <Skeleton variant="circle" width="16px" height="16px" />
+                                                <div style={{ flex: 1 }}>
+                                                    <Skeleton width="100%" height="14px" style={{ marginBottom: '4px' }} />
+                                                    <Skeleton width="60px" height="12px" />
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : departmentAlerts.length > 0 ? (
+                                        (showAllAlerts ? departmentAlerts : departmentAlerts.slice(0, 3)).map(alert => (
+                                            <div key={alert.id} className={`${styles.alertItem} ${styles[alert.type]}`}>
+                                                <AlertTriangle size={16} />
+                                                <div>
+                                                    <p>{alert.message}</p>
+                                                    <span>{alert.date}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p style={{ padding: '1rem', textAlign: 'center', color: '#6b7280' }}>No recent alerts</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             {activeTab === 'update-marks' && (<div className={styles.updateMarksContainer}><div className={styles.card}><div className={styles.cardHeader}><h3>Modify Student Marks</h3><div className={styles.filterGroup}>
                 <select className={styles.deptSelect} value={selectedSemester} onChange={(e) => setSelectedSemester(e.target.value)} style={{ marginRight: '10px' }}>
                     <option value="all">All Semesters</option>
@@ -2501,7 +2637,117 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                     </div>
                 );
             })()}
-            {activeTab === 'faculty' && (<div className={styles.facultyContainer}><div className={styles.card}><div className={styles.cardHeader}><h3>Department Faculty ({facultyList.length})</h3><div style={{ display: 'flex', gap: '1rem', position: 'relative' }}><button className={styles.primaryBtn} onClick={() => { setEditingFaculty(null); setFacultyForm({ fullName: '', username: '', email: '', password: 'password', designation: 'Faculty', subjects: '' }); setShowAddFacultyModal(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Users size={16} /> Add New Faculty</button><div style={{ position: 'relative' }}><button className={styles.secondaryBtn} onClick={() => setShowEditSelection(!showEditSelection)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}><Edit size={16} /> Edit Faculty</button>{showEditSelection && (<div style={{ position: 'absolute', top: '110%', right: 0, width: '250px', background: 'white', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', zIndex: 100, padding: '0.5rem' }}><p style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#64748b', borderBottom: '1px solid #f1f5f9', marginBottom: '0.5rem' }}>Select Faculty to Edit:</p><div style={{ maxHeight: '300px', overflowY: 'auto' }}>{facultyList.map(fac => (<button key={fac.id} onClick={() => { handleEditFaculty(fac); setShowEditSelection(false); }} style={{ width: '100%', textAlign: 'left', padding: '0.75rem', borderRadius: '6px', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '2px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'} onMouseLeave={e => e.currentTarget.style.background = 'none'}><span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>{fac.fullName || fac.username}</span><small style={{ color: '#64748b' }}>{fac.designation || 'Faculty'}</small></button>))}</div></div>)}</div></div></div><div className={styles.facultyList} style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: '1.5rem' }}>{facultyList.length > 0 ? facultyList.map(fac => (<div key={fac.id} className={styles.facultyItem} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', background: 'white', display: 'flex', flexDirection: 'column' }}><div className={styles.facProfile} style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}><div className={styles.avatarSm} style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>{fac.fullName ? fac.fullName.charAt(0) : fac.username.charAt(0)}</div><div style={{ flex: 1 }}><p className={styles.facName} style={{ fontWeight: 600, fontSize: '1.1rem', color: '#1e293b', margin: 0 }}>{fac.fullName || fac.username}</p><small className={styles.facStatus} style={{ color: '#64748b' }}>{fac.designation || 'Faculty Member'}</small>{(fac.semester || fac.section) && (<small style={{ color: '#2563eb', fontWeight: 500, fontSize: '0.8rem', marginTop: '2px', display: 'block' }}>Class Teacher: {fac.semester ? `${fac.semester} Sem` : ''} {fac.section ? `- Sec ${fac.section}` : ''}</small>)}</div></div><div style={{ marginBottom: '1rem', flex: 1 }}><span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Subjects ({parseSubjects(fac.subjects).length})</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>{parseSubjects(fac.subjects).length > 0 ? parseSubjects(fac.subjects).map((sub, i) => (<span key={i} style={{ fontSize: '0.8rem', background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', color: '#475569' }}>{sub}</span>)) : (<span style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>No active subjects assigned</span>)}</div></div><div className={styles.facActions} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}><button className={styles.viewBtn} style={{ gridColumn: 'span 2' }} onClick={() => handleViewDashboard(fac)}><LayoutDashboard size={16} /> View Dashboard</button><button className={styles.msgBtn} onClick={() => handleMessage(fac)}><Mail size={16} /> Message</button><button className={styles.secondaryBtn} onClick={() => handleEditFaculty(fac)} style={{ border: '1px solid #e2e8f0', background: 'white', color: '#475569' }}><Edit size={16} /> Edit</button><button className={styles.secondaryBtn} onClick={() => openResetPasswordModal(fac.username, fac.fullName || fac.username, 'FACULTY')} style={{ border: '1px solid #fde68a', background: '#fef3c7', color: '#d97706' }}><Key size={14} /> Reset</button><button className={styles.secondaryBtn} onClick={() => handleDeleteFaculty(fac.id)} style={{ border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626' }}><Trash2 size={16} /> Remove</button></div></div>)) : (<div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '3rem', color: '#64748b' }}><Users size={48} style={{ marginBottom: '1rem', color: '#cbd5e1' }} /><p>No faculty members found for this department.</p></div>)}</div></div>{showAddFacultyModal && (<div className={styles.modalOverlay}><div className={styles.modalContent} style={{ maxWidth: '500px' }}><div className={styles.modalHeader}><h3>{editingFaculty ? 'Edit Faculty' : 'Add New Faculty'}</h3><button className={styles.closeBtn} onClick={() => setShowAddFacultyModal(false)}><X size={24} /></button></div><div className={styles.modalBody}><form onSubmit={handleAddFaculty} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}><div className={styles.formGroup}><label>Full Name</label><input value={facultyForm.fullName} onChange={e => setFacultyForm({ ...facultyForm, fullName: e.target.value })} required placeholder="e.g. Dr. John Doe" className={styles.input} /></div><div className={styles.formGroup}><label>Username</label><input value={facultyForm.username} onChange={e => setFacultyForm({ ...facultyForm, username: e.target.value })} required placeholder="jdoe" className={styles.input} />{editingFaculty && <small style={{ color: '#64748b', fontSize: '0.75rem' }}>⚠️ Changing the username will update the faculty's login ID.</small>}</div><div className={styles.formGroup}><label>Email</label><input value={facultyForm.email} onChange={e => setFacultyForm({ ...facultyForm, email: e.target.value })} type="email" required placeholder="john@college.edu" className={styles.input} /></div>{!editingFaculty && (<div className={styles.formGroup}><label>Password</label><input value={facultyForm.password} onChange={e => setFacultyForm({ ...facultyForm, password: e.target.value })} required placeholder="password" className={styles.input} /></div>)}<div className={styles.formGroup}><label>Designation</label><select value={facultyForm.designation} onChange={e => setFacultyForm({ ...facultyForm, designation: e.target.value })} className={styles.input}><option>Faculty</option><option>Guest Faculty</option></select></div><div className={styles.formGroup}><label>CIE Role</label><select value={facultyForm.cieRole || ''} onChange={e => setFacultyForm({ ...facultyForm, cieRole: e.target.value })} className={styles.input}><option value=''>All CIEs (Default)</option><option value='THEORY'>Theory Only (CIE-1, 2, 5)</option><option value='LAB'>Lab Only (CIE-3, 4)</option></select><small style={{ color: '#64748b', fontSize: '0.75rem' }}>Set for subjects shared between Theory and Lab faculty.</small></div><div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}><button type="button" className={styles.secondaryBtn} onClick={() => setShowAddFacultyModal(false)}>Cancel</button><button type="submit" className={styles.primaryBtn} style={{ background: '#2563eb', color: 'white' }}>{editingFaculty ? 'Update Faculty' : 'Create Account'}</button></div></form></div></div></div>)}
+            {activeTab === 'faculty' && (
+                <div className={styles.facultyContainer}>
+                    <div className={styles.card}>
+                        <div className={styles.cardHeader}>
+                            <h3>Department Faculty ({facultyList.length})</h3>
+                            <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
+                                <button className={styles.primaryBtn} onClick={() => { setEditingFaculty(null); setFacultyForm({ fullName: '', username: '', email: '', password: 'password', designation: 'Faculty', subjects: '' }); setShowAddFacultyModal(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Users size={16} /> Add New Faculty</button>
+                                <div style={{ position: 'relative' }}>
+                                    <button className={styles.secondaryBtn} onClick={() => setShowEditSelection(!showEditSelection)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}><Edit size={16} /> Edit Faculty</button>
+                                    {showEditSelection && (
+                                        <div style={{ position: 'absolute', top: '110%', right: 0, width: '250px', background: 'white', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', zIndex: 100, padding: '0.5rem' }}>
+                                            <p style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#64748b', borderBottom: '1px solid #f1f5f9', marginBottom: '0.5rem' }}>Select Faculty to Edit:</p>
+                                            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                                {facultyList.map(fac => (
+                                                    <button key={fac.id} onClick={() => { handleEditFaculty(fac); setShowEditSelection(false); }} style={{ width: '100%', textAlign: 'left', padding: '0.75rem', borderRadius: '6px', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '2px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'} onMouseLeave={e => e.currentTarget.style.background = 'none'}><span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>{fac.fullName || fac.username}</span><small style={{ color: '#64748b' }}>{fac.designation || 'Faculty'}</small></button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className={styles.facultyList} style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: '1.5rem' }}>
+                            {loading ? (
+                                Array.from({ length: 6 }).map((_, i) => (
+                                    <div key={i} className={styles.facultyItem} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', background: 'white' }}>
+                                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+                                            <Skeleton variant="circle" width="48px" height="48px" />
+                                            <div style={{ flex: 1 }}>
+                                                <Skeleton width="120px" height="16px" style={{ marginBottom: '4px' }} />
+                                                <Skeleton width="80px" height="12px" />
+                                            </div>
+                                        </div>
+                                        <div style={{ marginBottom: '1rem' }}>
+                                            <Skeleton width="60px" height="12px" style={{ marginBottom: '8px' }} />
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <Skeleton width="60px" height="24px" />
+                                                <Skeleton width="60px" height="24px" />
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                            <Skeleton width="100%" height="32px" style={{ gridColumn: 'span 2' }} />
+                                            <Skeleton width="100%" height="32px" />
+                                            <Skeleton width="100%" height="32px" />
+                                        </div>
+                                    </div>
+                                ))
+                            ) : facultyList.length > 0 ? (
+                                facultyList.map(fac => (
+                                    <div key={fac.id} className={styles.facultyItem} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', background: 'white', display: 'flex', flexDirection: 'column' }}>
+                                        <div className={styles.facProfile} style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+                                            <div className={styles.avatarSm} style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>{fac.fullName ? fac.fullName.charAt(0) : fac.username.charAt(0)}</div>
+                                            <div style={{ flex: 1 }}>
+                                                <p className={styles.facName} style={{ fontWeight: 600, fontSize: '1.1rem', color: '#1e293b', margin: 0 }}>{fac.fullName || fac.username}</p>
+                                                <small className={styles.facStatus} style={{ color: '#64748b' }}>{fac.designation || 'Faculty Member'}</small>
+                                                {(fac.semester || fac.section) && (<small style={{ color: '#2563eb', fontWeight: 500, fontSize: '0.8rem', marginTop: '2px', display: 'block' }}>Class Teacher: {fac.semester ? `${fac.semester} Sem` : ''} {fac.section ? `- Sec ${fac.section}` : ''}</small>)}
+                                            </div>
+                                        </div>
+                                        <div style={{ marginBottom: '1rem', flex: 1 }}>
+                                            <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Subjects ({parseSubjects(fac.subjects).length})</span>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                                {parseSubjects(fac.subjects).length > 0 ? parseSubjects(fac.subjects).map((sub, i) => (
+                                                    <span key={i} style={{ fontSize: '0.8rem', background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', color: '#475569' }}>{sub}</span>
+                                                )) : (
+                                                    <span style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>No active subjects assigned</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className={styles.facActions} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                            <button className={styles.viewBtn} style={{ gridColumn: 'span 2' }} onClick={() => handleViewDashboard(fac)}><LayoutDashboard size={16} /> View Dashboard</button>
+                                            <button className={styles.msgBtn} onClick={() => handleMessage(fac)}><Mail size={16} /> Message</button>
+                                            <button className={styles.secondaryBtn} onClick={() => handleEditFaculty(fac)} style={{ border: '1px solid #e2e8f0', background: 'white', color: '#475569' }}><Edit size={16} /> Edit</button>
+                                            <button className={styles.secondaryBtn} onClick={() => openResetPasswordModal(fac.username, fac.fullName || fac.username, 'FACULTY')} style={{ border: '1px solid #fde68a', background: '#fef3c7', color: '#d97706' }}><Key size={14} /> Reset</button>
+                                            <button className={styles.secondaryBtn} onClick={() => handleDeleteFaculty(fac.id)} style={{ border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626' }}><Trash2 size={16} /> Remove</button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                                    <Users size={48} style={{ marginBottom: '1rem', color: '#cbd5e1' }} />
+                                    <p>No faculty members found for this department.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    {showAddFacultyModal && (
+                        <div className={styles.modalOverlay}>
+                            <div className={styles.modalContent} style={{ maxWidth: '500px' }}>
+                                <div className={styles.modalHeader}>
+                                    <h3>{editingFaculty ? 'Edit Faculty' : 'Add New Faculty'}</h3>
+                                    <button className={styles.closeBtn} onClick={() => setShowAddFacultyModal(false)}><X size={24} /></button>
+                                </div>
+                                <div className={styles.modalBody}>
+                                    <form onSubmit={handleAddFaculty} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        <div className={styles.formGroup}><label>Full Name</label><input value={facultyForm.fullName} onChange={e => setFacultyForm({ ...facultyForm, fullName: e.target.value })} required placeholder="e.g. Dr. John Doe" className={styles.input} /></div>
+                                        <div className={styles.formGroup}><label>Username</label><input value={facultyForm.username} onChange={e => setFacultyForm({ ...facultyForm, username: e.target.value })} required placeholder="jdoe" className={styles.input} />{editingFaculty && <small style={{ color: '#64748b', fontSize: '0.75rem' }}>⚠️ Changing the username will update the faculty's login ID.</small>}</div>
+                                        <div className={styles.formGroup}><label>Email</label><input value={facultyForm.email} onChange={e => setFacultyForm({ ...facultyForm, email: e.target.value })} type="email" required placeholder="john@college.edu" className={styles.input} /></div>
+                                        {!editingFaculty && (<div className={styles.formGroup}><label>Password</label><input value={facultyForm.password} onChange={e => setFacultyForm({ ...facultyForm, password: e.target.value })} required placeholder="password" className={styles.input} /></div>)}
+                                        <div className={styles.formGroup}><label>Designation</label><select value={facultyForm.designation} onChange={e => setFacultyForm({ ...facultyForm, designation: e.target.value })} className={styles.input}><option>Faculty</option><option>Guest Faculty</option></select></div>
+                                        <div className={styles.formGroup}><label>CIE Role</label><select value={facultyForm.cieRole || ''} onChange={e => setFacultyForm({ ...facultyForm, cieRole: e.target.value })} className={styles.input}><option value=''>All CIEs (Default)</option><option value='THEORY'>Theory Only (CIE-1, 2, 5)</option><option value='LAB'>Lab Only (CIE-3, 4)</option></select><small style={{ color: '#64748b', fontSize: '0.75rem' }}>Set for subjects shared between Theory and Lab faculty.</small></div>
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                                            <button type="button" className={styles.secondaryBtn} onClick={() => setShowAddFacultyModal(false)}>Cancel</button>
+                                            <button type="submit" className={styles.primaryBtn} style={{ background: '#2563eb', color: 'white' }}>{editingFaculty ? 'Update Faculty' : 'Create Account'}</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
                 {viewingFaculty && (<div className={styles.modalOverlay} onClick={() => setViewingFaculty(null)}><div className={styles.modalContent} style={{ maxWidth: '700px' }} onClick={e => e.stopPropagation()}><div className={styles.modalHeader}><div><h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{viewingFaculty.fullName || viewingFaculty.username}</h2><span className={styles.badge} style={{ position: 'static', padding: '2px 8px', borderRadius: '4px', background: '#eff6ff', color: '#2563eb', fontWeight: 500, fontSize: '0.85rem' }}>Dashboard Overview</span></div><button className={styles.closeBtn} onClick={() => setViewingFaculty(null)}><X size={24} /></button></div><div className={styles.modalBody}>{(() => {
                     let totalAvg = 0;
                     let evaluatedCount = 0;
@@ -2521,70 +2767,164 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                     const overall = subStats.length > 0 ? Math.round(totalAvg / subStats.length) : 0;
 
                     return (<><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}><div className={styles.statCard} style={{ background: '#f8fafc', border: 'none' }}><div className={`${styles.iconBox} ${styles.blue}`}><TrendingUp size={20} /></div><div><p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Avg Class Score</p><h3 style={{ margin: 0, fontSize: '1.25rem' }}>{overall > 0 ? overall : '-'}/50</h3></div></div><div className={styles.statCard} style={{ background: '#f8fafc', border: 'none' }}><div className={`${styles.iconBox} ${styles.green}`}><CheckCircle size={20} /></div><div><p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Students Evaluated</p><h3 style={{ margin: 0, fontSize: '1.25rem' }}>{evaluatedCount}</h3></div></div></div><div><h4 style={{ marginBottom: '1rem', fontWeight: 600 }}>Assigned Subjects Performance</h4><div className={styles.tableWrapper}><table className={styles.table}><thead><tr><th>Subject</th><th>Avg Score</th><th>Status</th></tr></thead><tbody>{subStats.length > 0 ? subStats.map((s, i) => (<tr key={i}><td style={{ fontWeight: 500 }}>{s.name}</td><td>{s.avg || '-'}</td><td><span style={{ color: s.avg >= 35 ? '#16a34a' : s.avg >= 20 ? '#ca8a04' : '#dc2626', fontWeight: 600 }}>{s.avg >= 35 ? 'Good' : s.avg >= 20 ? 'Average' : 'Need Improvement'}</span></td></tr>)) : (<tr><td colSpan="3" style={{ textAlign: 'center', color: '#94a3b8' }}>No subjects found</td></tr>)}</tbody></table></div></div></>);
-                })()}</div></div></div>)}{messagingFaculty && (<div className={styles.modalOverlay} onClick={() => setMessagingFaculty(null)}><div className={styles.modalContent} style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}><div className={styles.modalHeader}><h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Mail size={20} /> Message {messagingFaculty.username}</h3><button className={styles.closeBtn} onClick={() => setMessagingFaculty(null)}><X size={24} /></button></div><div className={styles.modalBody}><div className={styles.formGroup}><label>Message Content</label><textarea value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type your message here..." className={styles.input} style={{ minHeight: '120px', resize: 'vertical' }} autoFocus></textarea></div><div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}><button className={styles.secondaryBtn} onClick={() => setMessagingFaculty(null)}>Cancel</button><button className={styles.primaryBtn} onClick={sendMessage} disabled={!messageText.trim()} style={{ opacity: !messageText.trim() ? 0.6 : 1 }}>Send Message</button></div></div></div></div>)}</div>)}
-            {activeTab === 'approvals' && (<div className={styles.approvalsContainer}><div className={styles.infoBanner}><CheckCircle size={20} /><p>You have <strong>{pendingApprovals.length}</strong> IA Bundles pending for final approval.</p></div>{approvalLoading ? (<div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>Loading pending submissions...</div>) : pendingApprovals.length === 0 ? (<div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}><CheckCircle size={48} style={{ marginBottom: '1rem', color: '#10b981' }} /><p>No pending submissions. All marks have been reviewed!</p></div>) : (pendingApprovals.map((approval, idx) => (<div key={idx} className={styles.approvalCard}><div className={styles.approvalHeader}><div><h4>{approval.subjectName}</h4><span>{approval.iaType} Marks | Faculty: {approval.facultyName} | {approval.studentCount} students</span></div><div className={styles.approvlActions}><button className={styles.rejectBtn} onClick={() => handleRejectMarks(approval.subjectId, approval.iaType)}>Reject</button><button className={styles.approveBtn} onClick={() => handleApproveMarks(approval.subjectId, approval.iaType)}>Approve & Lock</button></div></div><table className={styles.miniTable}><thead><tr><th>Reg No</th><th>Student</th><th>Marks</th><th>Att (%)</th></tr></thead><tbody>{(Array.isArray(approval.marks) ? (expandedApprovals[idx] ? approval.marks : approval.marks.slice(0, 3)) : []).map(st => (<tr key={st.studentId}><td>{st.regNo}</td><td>{st.studentName}</td><td>{st.totalScore}/50</td><td style={{ color: st.attendancePercentage != null ? '#15803d' : '#94a3b8', fontWeight: 500 }}>{st.attendancePercentage != null ? `${st.attendancePercentage}%` : '-'}</td></tr>))}{Array.isArray(approval.marks) && approval.marks.length > 3 && (<tr onClick={() => toggleExpansion(idx)} style={{ cursor: 'pointer', background: '#f8fafc' }}><td colSpan="3" style={{ textAlign: 'center', color: '#2563eb', fontWeight: 500 }}>{expandedApprovals[idx] ? 'Show Less' : `+ ${approval.marks.length - 3} more records (Click to expand)`}</td></tr>)}</tbody></table></div>)))}
-                <div className={styles.card} style={{ marginTop: '2.5rem', border: '1px solid #fee2e2', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.05)', overflow: 'visible' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #f1f5f9', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
-                        <div>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#b91c1c', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
-                                <div style={{ padding: '8px', background: '#fef2f2', borderRadius: '8px', display: 'flex', border: '1px solid #fecaca' }}>
-                                    <LockOpen size={18} color="#b91c1c" />
-                                </div>
-                                Unlock Approved Marks
-                            </h3>
-                            <p style={{ margin: '0.5rem 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>
-                                Revert approved marks to pending status to allow faculty modifications
-                            </p>
+                })()}</div></div></div>)}
+            {messagingFaculty && (
+                <div className={styles.modalOverlay} onClick={() => setMessagingFaculty(null)}>
+                    <div className={styles.modalContent} style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Mail size={20} /> Message {messagingFaculty.username}</h3>
+                            <button className={styles.closeBtn} onClick={() => setMessagingFaculty(null)}><X size={24} /></button>
                         </div>
-                    </div>
-
-                    <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(150px, 1fr) auto', gap: '1.5rem', alignItems: 'flex-end' }}>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Select Subject</label>
-                                <select className={styles.select} id="unlockSubject" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', fontSize: '0.9rem', color: '#1e293b' }}>
-                                    <option value="">-- Choose Subject --</option>
-                                    {subjects.filter(s => s.name !== 'IC').map(subject => (
-                                        <option key={subject.id} value={subject.id}>{subject.name}</option>
-                                    ))}
-                                </select>
+                        <div className={styles.modalBody}>
+                            <div className={styles.formGroup}>
+                                <label>Message Content</label>
+                                <textarea value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type your message here..." className={styles.input} style={{ minHeight: '120px', resize: 'vertical' }} autoFocus></textarea>
                             </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>CIE Type</label>
-                                <select className={styles.select} id="unlockCIE" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', fontSize: '0.9rem', color: '#1e293b' }}>
-                                    <option value="CIE1">CIE-1</option>
-                                    <option value="CIE2">CIE-2</option>
-                                    <option value="CIE3">CIE-3</option>
-                                    <option value="CIE4">CIE-4</option>
-                                    <option value="CIE5">CIE-5</option>
-                                </select>
-                            </div>
-                            <button
-                                onClick={() => { const subjectId = document.getElementById('unlockSubject').value; const cieType = document.getElementById('unlockCIE').value; if (!subjectId) { showToast('Please select a subject', 'error'); return; } const subject = subjects.find(s => s.id === parseInt(subjectId)); handleUnlockMarks(subjectId, cieType, subject?.name || 'Selected Subject'); }}
-                                style={{
-                                    padding: '0.75rem 1.5rem', background: '#ef4444', color: 'white', border: 'none',
-                                    borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem',
-                                    transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.2)'
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                            >
-                                <Unlock size={16} />
-                                Unlock Marks
-                            </button>
-                        </div>
-
-                        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#fffbeb', border: '1px solid #fef08a', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                            <AlertTriangle size={18} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
-                            <div>
-                                <p style={{ margin: 0, color: '#92400e', fontSize: '0.85rem', lineHeight: 1.5 }}>
-                                    <strong style={{ color: '#b45309' }}>Warning:</strong> Unlocking marks will immediately change their status from <span style={{ background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>APPROVED</span> to <span style={{ background: '#fef9c3', color: '#854d0e', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>PENDING</span>, allowing the assigned faculty to edit them.
-                                </p>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+                                <button className={styles.secondaryBtn} onClick={() => setMessagingFaculty(null)}>Cancel</button>
+                                <button className={styles.primaryBtn} onClick={sendMessage} disabled={!messageText.trim()} style={{ opacity: !messageText.trim() ? 0.6 : 1 }}>Send Message</button>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>)}
+            )}
+            {activeTab === 'approvals' && (
+                <div className={styles.approvalsContainer}>
+                    <div className={styles.infoBanner}>
+                        <CheckCircle size={20} />
+                        <p>You have <strong>{pendingApprovals.length}</strong> IA Bundles pending for final approval.</p>
+                    </div>
+                    {approvalLoading ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100%, 1fr))', gap: '1.5rem' }}>
+                            {[1, 2].map(i => (
+                                <div key={i} className={styles.approvalCard}>
+                                    <div className={styles.approvalHeader}>
+                                        <div style={{ flex: 1 }}>
+                                            <Skeleton width="200px" height="20px" style={{ marginBottom: '8px' }} />
+                                            <Skeleton width="300px" height="14px" />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <Skeleton width="80px" height="36px" />
+                                            <Skeleton width="120px" height="36px" />
+                                        </div>
+                                    </div>
+                                    <div style={{ marginTop: '1rem' }}>
+                                        <Skeleton width="100%" height="150px" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : pendingApprovals.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
+                            <CheckCircle size={48} style={{ marginBottom: '1rem', color: '#10b981' }} />
+                            <p>No pending submissions. All marks have been reviewed!</p>
+                        </div>
+                    ) : (
+                        pendingApprovals.map((approval, idx) => (
+                            <div key={idx} className={styles.approvalCard}>
+                                <div className={styles.approvalHeader}>
+                                    <div>
+                                        <h4>{approval.subjectName}</h4>
+                                        <span>{approval.iaType} Marks | Faculty: {approval.facultyName} | {approval.studentCount} students</span>
+                                    </div>
+                                    <div className={styles.approvlActions}>
+                                        <button className={styles.rejectBtn} onClick={() => handleRejectMarks(approval.subjectId, approval.iaType)}>Reject</button>
+                                        <button className={styles.approveBtn} onClick={() => handleApproveMarks(approval.subjectId, approval.iaType)}>Approve & Lock</button>
+                                    </div>
+                                </div>
+                                <table className={styles.miniTable}>
+                                    <thead>
+                                        <tr>
+                                            <th>Reg No</th>
+                                            <th>Student</th>
+                                            <th>Marks</th>
+                                            <th>Att (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(Array.isArray(approval.marks) ? (expandedApprovals[idx] ? approval.marks : approval.marks.slice(0, 3)) : []).map(st => (
+                                            <tr key={st.studentId}>
+                                                <td>{st.regNo}</td>
+                                                <td>{st.studentName}</td>
+                                                <td>{st.totalScore}/50</td>
+                                                <td style={{ color: st.attendancePercentage != null ? '#15803d' : '#94a3b8', fontWeight: 500 }}>{st.attendancePercentage != null ? `${st.attendancePercentage}%` : '-'}</td>
+                                            </tr>
+                                        ))}
+                                        {Array.isArray(approval.marks) && approval.marks.length > 3 && (
+                                            <tr onClick={() => toggleExpansion(idx)} style={{ cursor: 'pointer', background: '#f8fafc' }}>
+                                                <td colSpan="3" style={{ textAlign: 'center', color: '#2563eb', fontWeight: 500 }}>
+                                                    {expandedApprovals[idx] ? 'Show Less' : `+ ${approval.marks.length - 3} more records (Click to expand)`}
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ))
+                    )}
+                    <div className={styles.card} style={{ marginTop: '2.5rem', border: '1px solid #fee2e2', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.05)', overflow: 'visible' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #f1f5f9', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
+                            <div>
+                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#b91c1c', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+                                    <div style={{ padding: '8px', background: '#fef2f2', borderRadius: '8px', display: 'flex', border: '1px solid #fecaca' }}>
+                                        <LockOpen size={18} color="#b91c1c" />
+                                    </div>
+                                    Unlock Approved Marks
+                                </h3>
+                                <p style={{ margin: '0.5rem 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>
+                                    Revert approved marks to pending status to allow faculty modifications
+                                </p>
+                            </div>
+                        </div>
+
+                        <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(150px, 1fr) auto', gap: '1.5rem', alignItems: 'flex-end' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Select Subject</label>
+                                    <select className={styles.select} id="unlockSubject" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', fontSize: '0.9rem', color: '#1e293b' }}>
+                                        <option value="">-- Choose Subject --</option>
+                                        {subjects.filter(s => s.name !== 'IC').map(subject => (
+                                            <option key={subject.id} value={subject.id}>{subject.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>CIE Type</label>
+                                    <select className={styles.select} id="unlockCIE" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', fontSize: '0.9rem', color: '#1e293b' }}>
+                                        <option value="CIE1">CIE-1</option>
+                                        <option value="CIE2">CIE-2</option>
+                                        <option value="CIE3">CIE-3</option>
+                                        <option value="CIE4">CIE-4</option>
+                                        <option value="CIE5">CIE-5</option>
+                                    </select>
+                                </div>
+                                <button
+                                    onClick={() => { const subjectId = document.getElementById('unlockSubject').value; const cieType = document.getElementById('unlockCIE').value; if (!subjectId) { showToast('Please select a subject', 'error'); return; } const subject = subjects.find(s => s.id === parseInt(subjectId)); handleUnlockMarks(subjectId, cieType, subject?.name || 'Selected Subject'); }}
+                                    style={{
+                                        padding: '0.75rem 1.5rem', background: '#ef4444', color: 'white', border: 'none',
+                                        borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                        transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.2)'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                                >
+                                    <Unlock size={16} />
+                                    Unlock Marks
+                                </button>
+                            </div>
+
+                            <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#fffbeb', border: '1px solid #fef08a', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                                <AlertTriangle size={18} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+                                <div>
+                                    <p style={{ margin: 0, color: '#92400e', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                                        <strong style={{ color: '#b45309' }}>Warning:</strong> Unlocking marks will immediately change their status from <span style={{ background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>APPROVED</span> to <span style={{ background: '#fef9c3', color: '#854d0e', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>PENDING</span>, allowing the assigned faculty to edit them.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             {activeTab === 'analytics' && (<div className={styles.analyticsContainer}><div className={styles.gridTwo}><div className={styles.card}><h3>IA Submission Status</h3><div className={styles.doughnutContainer}><Pie data={iaSubmissionStatus} options={doughnutOptions} /></div></div><div className={styles.card}><h3>Year-on-Year Improvement</h3><div className={styles.chartContainer}><Line data={hodTrendData} options={commonOptions} /></div></div></div><div className={styles.card} style={{ marginTop: '1.5rem' }}><h3>Download Reports</h3><div className={styles.downloadOptions}><button className={styles.downloadBtn}><FileText size={16} /> Department IA Report (PDF)</button><button className={styles.downloadBtn}><FileText size={16} /> Consolidated Marks Sheet (Excel)</button><button className={styles.downloadBtn}><FileText size={16} /> Low Performers List (CSV)</button></div></div></div>)}
             {activeTab === 'lesson-plans' && (<div className={styles.lessonPlansContainer}><div className={styles.card}><div className={styles.cardHeader}><h3>Department Syllabus Progress</h3></div><div className={styles.gridContainer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(350px,1fr))', gap: '1.5rem', marginTop: '1rem' }}>{subjectsByDept[selectedDept]?.map((subName, idx) => { const subId = idx + 1; const realSub = subjects.find(s => s.name === subName); const idToUse = realSub ? realSub.id : subId; const savedTracker = localStorage.getItem('syllabusTracker'); const progress = savedTracker ? (JSON.parse(savedTracker)[idToUse] || {}) : {}; const savedStructure = localStorage.getItem('syllabusStructure'); const structure = savedStructure ? (JSON.parse(savedStructure)[idToUse] || []) : []; const savedCie = localStorage.getItem('cieSelector'); const cieSelector = savedCie ? (JSON.parse(savedCie)[idToUse] || {}) : {}; const units = structure.length > 0 ? structure : [{ id: 'u1', name: 'Unit 1: Introduction' }, { id: 'u2', name: 'Unit 2: Core Concepts' }, { id: 'u3', name: 'Unit 3: Advanced Topics' }, { id: 'u4', name: 'Unit 4: Application' }, { id: 'u5', name: 'Unit 5: Case Studies' }]; const completedCount = units.filter(u => progress[u.id]).length; const totalUnits = units.length; const percent = totalUnits > 0 ? Math.round((completedCount / totalUnits) * 100) : 0; return (<div key={idx} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1.5rem' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}><div><h4 style={{ margin: '0 0 0.25rem', fontSize: '1.1rem', color: '#111827' }}>{subName}</h4><span style={{ fontSize: '0.85rem', color: '#6b7280' }}>Faculty: {facultyWorkload[idx % facultyWorkload.length]?.name || 'Unknown'}</span></div><div style={{ textAlign: 'right' }}><span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: percent === 100 ? '#10b981' : '#3b82f6' }}>{percent}%</span></div></div><div style={{ height: '8px', background: '#f3f4f6', borderRadius: '4px', overflow: 'hidden', marginBottom: '1rem' }}><div style={{ width: `${percent}%`, height: '100%', background: percent === 100 ? '#10b981' : '#3b82f6', transition: 'width 0.5s ease' }}></div></div><div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{units.slice(0, 3).map(u => (<div key={u.id} style={{ display: 'flex', alignItems: 'center', fontSize: '0.9rem', color: progress[u.id] ? '#374151' : '#9ca3af' }}><div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid', borderColor: progress[u.id] ? '#10b981' : '#d1d5db', background: progress[u.id] ? '#10b981' : 'transparent', marginRight: '8px', display: 'grid', placeItems: 'center', flexShrink: 0 }}>{progress[u.id] && <CheckCircle size={10} color="white" />}</div><span style={{ textDecoration: progress[u.id] ? 'line-through' : 'none', marginRight: '8px' }}>{u.name}</span>{cieSelector[u.id] && (<span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#7c3aed', backgroundColor: '#f5f3ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #7c3aed', marginLeft: 'auto' }}>CIE</span>)}</div>))}{units.length > 3 && (<div style={{ fontSize: '0.8rem', color: '#6b7280', paddingLeft: '24px' }}>+ {units.length - 3} more topics</div>)}</div></div>); })}</div></div></div>)}
             {activeTab === 'syllabus' && (<div className={styles.sectionContainer}>
@@ -3070,7 +3410,34 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                     </div>
 
                     {/* Pending Requests */}
-                    {pending.length > 0 ? (
+                    {/* Pending Requests */}
+                    {assignReqLoading ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                            {[1, 2, 3].map(i => (
+                                <div key={i} style={{ border: '2px solid #f1f5f9', borderRadius: '12px', padding: '1.25rem', background: '#f8fafc' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                        <div>
+                                            <Skeleton width="140px" height="18px" style={{ marginBottom: '6px' }} />
+                                            <Skeleton width="100px" height="14px" />
+                                        </div>
+                                        <Skeleton width="70px" height="24px" />
+                                    </div>
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <Skeleton width="100px" height="14px" style={{ marginBottom: '8px' }} />
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <Skeleton width="80px" height="24px" />
+                                            <Skeleton width="80px" height="24px" />
+                                        </div>
+                                    </div>
+                                    <Skeleton width="120px" height="14px" style={{ marginBottom: '1.5rem' }} />
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        <Skeleton width="100%" height="36px" />
+                                        <Skeleton width="100%" height="36px" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : pending.length > 0 ? (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
                             {pending.map(req => (
                                 <div key={req.id} style={{ border: '2px solid #fde68a', borderRadius: '12px', padding: '1.25rem', background: '#fffbeb' }}>

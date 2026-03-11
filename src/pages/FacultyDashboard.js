@@ -7,6 +7,7 @@ import { LayoutDashboard, Users, FilePlus, Save, AlertCircle, Phone, FileText, C
 import { facultyData, facultyProfiles, facultySubjects, studentsList, labSchedule, getMenteesForFaculty } from '../utils/mockData';
 import styles from './FacultyDashboard.module.css';
 import authenticatedFetch from '../utils/authFetch';
+import Skeleton from '../components/ui/Skeleton';
 
 
 
@@ -66,6 +67,7 @@ const FacultyDashboard = () => {
     const [subjects, setSubjects] = useState([]);
     const [students, setStudents] = useState([]);
     const [allStudentMarks, setAllStudentMarks] = useState({}); // { subjectId: { studentId: { ...marks } } }
+    const [loading, setLoading] = useState(true);
     const API_BASE = `${API_BASE_URL}/marks`;
     const [facultyClassAnalytics, setFacultyClassAnalytics] = useState({
         evaluated: 0,
@@ -338,7 +340,8 @@ const FacultyDashboard = () => {
             }
 
         };
-        fetchInitialData();
+        setLoading(true);
+        fetchInitialData().finally(() => setLoading(false));
 
     }, [user, fetchAnalytics]);
 
@@ -1689,21 +1692,32 @@ const FacultyDashboard = () => {
                         <span style={{ fontSize: '0.8rem', color: '#dc2626', fontWeight: 'bold' }}>{facultyClassAnalytics.start || 'Deadline: TBA'}</span>
                     </div>
                     <div className={styles.analyticsContent}>
-                        <div className={styles.statItem}>
-                            <span className={styles.statValue}>{facultyClassAnalytics.totalStudents || (facultyClassAnalytics.evaluated + facultyClassAnalytics.pending)}</span>
-                            <span className={styles.statLabel}><Users size={14} /> Total Students</span>
-                        </div>
-                        <div className={styles.statItem}>
-                            <span className={styles.statValue}>{facultyClassAnalytics.evaluated}</span>
-                            <span className={styles.statLabel}><CheckCircle size={14} /> Evaluated</span>
-                        </div>
-                        <div className={styles.statItem}>
-                            <span className={styles.statValue} style={{ color: facultyClassAnalytics.pending > 0 ? '#ef4444' : 'inherit' }}>
-                                {facultyClassAnalytics.pending > 0 ? <AlertTriangle size={14} color="#ef4444" style={{ marginRight: '4px' }} /> : <Clock size={14} />}
-                                {facultyClassAnalytics.pending}
-                            </span>
-                            <span className={styles.statLabel}>Pending</span>
-                        </div>
+                        {loading ? (
+                            Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className={styles.statItem}>
+                                    <Skeleton width="40px" height="24px" style={{ marginBottom: '4px' }} />
+                                    <Skeleton width="60px" height="12px" />
+                                </div>
+                            ))
+                        ) : (
+                            <>
+                                <div className={styles.statItem}>
+                                    <span className={styles.statValue}>{facultyClassAnalytics.totalStudents || (facultyClassAnalytics.evaluated + facultyClassAnalytics.pending)}</span>
+                                    <span className={styles.statLabel}><Users size={14} /> Total Students</span>
+                                </div>
+                                <div className={styles.statItem}>
+                                    <span className={styles.statValue}>{facultyClassAnalytics.evaluated}</span>
+                                    <span className={styles.statLabel}><CheckCircle size={14} /> Evaluated</span>
+                                </div>
+                                <div className={styles.statItem}>
+                                    <span className={styles.statValue} style={{ color: facultyClassAnalytics.pending > 0 ? '#ef4444' : 'inherit' }}>
+                                        {facultyClassAnalytics.pending > 0 ? <AlertTriangle size={14} color="#ef4444" style={{ marginRight: '4px' }} /> : <Clock size={14} />}
+                                        {facultyClassAnalytics.pending}
+                                    </span>
+                                    <span className={styles.statLabel}>Pending</span>
+                                </div>
+                            </>
+                        )}
                     </div>
                     <div style={{ marginTop: '1rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.3rem', color: '#6b7280' }}>
@@ -1720,18 +1734,29 @@ const FacultyDashboard = () => {
                 <div className={styles.analyticsCard}>
                     <h3 className={styles.analyticsTitle}>CLASS ANALYTICS</h3>
                     <div className={styles.analyticsContent}>
-                        <div className={styles.statItem}>
-                            <span className={styles.statValue}>{facultyClassAnalytics.avgScore}%</span>
-                            <span className={styles.statLabel}><BarChart2 size={14} /> Avg Score</span>
-                        </div>
-                        <div className={styles.statItem}>
-                            <span className={styles.statValue}>{facultyClassAnalytics.lowPerformers}</span>
-                            <span className={styles.statLabel}><TrendingDown size={14} /> Low Performers</span>
-                        </div>
-                        <div className={styles.statItem}>
-                            <span className={styles.statValue}>{facultyClassAnalytics.topPerformers}</span>
-                            <span className={styles.statLabel}><Award size={14} /> Top Performers</span>
-                        </div>
+                        {loading ? (
+                            Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className={styles.statItem}>
+                                    <Skeleton width="40px" height="24px" style={{ marginBottom: '4px' }} />
+                                    <Skeleton width="60px" height="12px" />
+                                </div>
+                            ))
+                        ) : (
+                            <>
+                                <div className={styles.statItem}>
+                                    <span className={styles.statValue}>{facultyClassAnalytics.avgScore}%</span>
+                                    <span className={styles.statLabel}><BarChart2 size={14} /> Avg Score</span>
+                                </div>
+                                <div className={styles.statItem}>
+                                    <span className={styles.statValue}>{facultyClassAnalytics.lowPerformers}</span>
+                                    <span className={styles.statLabel}><TrendingDown size={14} /> Low Performers</span>
+                                </div>
+                                <div className={styles.statItem}>
+                                    <span className={styles.statValue}>{facultyClassAnalytics.topPerformers}</span>
+                                    <span className={styles.statLabel}><Award size={14} /> Top Performers</span>
+                                </div>
+                            </>
+                        )}
                     </div>
                     <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: facultyClassAnalytics.avgScore >= 50 ? '#059669' : '#ca8a04', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {facultyClassAnalytics.avgScore >= 50 ? <TrendingDown size={16} style={{ transform: 'rotate(180deg)' }} /> : <AlertTriangle size={14} />} {facultyClassAnalytics.avgScore >= 50 ? 'Good performance — class average above 50%' : 'Class average needs improvement'}
@@ -1765,7 +1790,15 @@ const FacultyDashboard = () => {
                                 }
                                 return (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                                        {overviewDepartments.map(dept => (
+                                        {loading ? (
+                                            Array.from({ length: 3 }).map((_, i) => (
+                                                <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '2rem 1.5rem', textAlign: 'center', border: '1px solid #f1f5f9' }}>
+                                                    <Skeleton variant="circle" width="64px" height="64px" style={{ margin: '0 auto 1.5rem auto' }} />
+                                                    <Skeleton width="120px" height="20px" style={{ margin: '0 auto 0.5rem auto' }} />
+                                                    <Skeleton width="80px" height="14px" style={{ margin: '0 auto' }} />
+                                                </div>
+                                            ))
+                                        ) : overviewDepartments.map(dept => (
                                             <div
                                                 key={dept}
                                                 onClick={() => setSelectedOverviewDept(dept)}
@@ -1826,7 +1859,22 @@ const FacultyDashboard = () => {
                             </div>
 
                             <div className={styles.cardsGrid}>
-                                {mySubjects.length > 0 ? mySubjects
+                                {loading ? (
+                                    Array.from({ length: 4 }).map((_, i) => (
+                                        <div key={i} className={styles.subjectCard}>
+                                            <div className={styles.cardHeader}>
+                                                <Skeleton width="150px" height="24px" style={{ marginBottom: '8px' }} />
+                                                <Skeleton width="60px" height="20px" />
+                                            </div>
+                                            <div className={styles.subjectFooter}>
+                                                <Skeleton width="100px" height="16px" />
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <Skeleton width="80px" height="20px" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : mySubjects.length > 0 ? mySubjects
                                     .filter(sub => sub.department === selectedOverviewDept)
                                     .map(sub => (
                                         <div key={sub.id} className={styles.subjectCard} onClick={() => handleSubjectClick(sub)}>
@@ -1866,7 +1914,17 @@ const FacultyDashboard = () => {
                         </div>
 
                         <div className={styles.notificationsList}>
-                            {notifications.length > 0 ? (
+                            {loading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <div key={i} className={styles.notifItem}>
+                                        <Skeleton variant="circle" width="32px" height="32px" />
+                                        <div className={styles.notifContent} style={{ flex: 1 }}>
+                                            <Skeleton width="100%" height="14px" style={{ marginBottom: '4px' }} />
+                                            <Skeleton width="60px" height="12px" />
+                                        </div>
+                                    </div>
+                                ))
+                            ) : notifications.length > 0 ? (
                                 notifications.slice(0, 5).map((note, idx) => (
                                     <div key={note.id || idx} className={styles.notifItem}>
                                         <div className={styles.notifIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
@@ -2082,7 +2140,25 @@ const FacultyDashboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredStudents.map((std, index) => {
+                                {loading ? (
+                                    Array.from({ length: 8 }).map((_, i) => (
+                                        <tr key={i}>
+                                            <td style={{ paddingLeft: '1.5rem' }}><Skeleton width="30px" height="16px" /></td>
+                                            <td><Skeleton width="100px" height="16px" /></td>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Skeleton variant="circle" width="32px" height="32px" />
+                                                    <Skeleton width="140px" height="16px" />
+                                                </div>
+                                            </td>
+                                            <td><Skeleton width="80px" height="16px" /></td>
+                                            <td><Skeleton width="40px" height="20px" /></td>
+                                            <td><Skeleton width="100px" height="24px" /></td>
+                                            <td><Skeleton width="80px" height="24px" /></td>
+                                            <td><Skeleton variant="circle" width="32px" height="32px" /></td>
+                                        </tr>
+                                    ))
+                                ) : filteredStudents.map((std, index) => {
                                     // Calculate Real Grade & Status using central helper
                                     const { grade, hasData } = getStudentPerformance(std.id);
 
@@ -2186,7 +2262,7 @@ const FacultyDashboard = () => {
 
             if (cieDepartments.length === 1) {
                 setTimeout(() => setSelectedCieDept(cieDepartments[0]), 0);
-                return <div style={{ textAlign: 'center', padding: '4rem' }}>Loading subjects...</div>;
+                return <div style={{ textAlign: 'center', padding: '4rem' }}>{loading ? <Skeleton width="200px" height="24px" /> : 'Loading subjects...'}</div>;
             }
 
             return (
@@ -3130,45 +3206,49 @@ const FacultyDashboard = () => {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                         <label style={{ fontWeight: 600, color: '#374151', fontSize: '1rem' }}>Subject</label>
-                                        <select
-                                            name="subjectId"
-                                            value={iaConfig.subjectId}
-                                            onChange={handleIaConfigChange}
-                                            className={styles.largeInput}
-                                            style={{ width: '100%' }}
-                                        >
-                                            <option value="">Select Subject</option>
-                                            {mySubjects.map(sub => (
-                                                <option key={sub.id} value={sub.id}>{sub.name} ({sub.code}) - {sub.department}</option>
-                                            ))}
-                                        </select>
+                                        {loading ? <Skeleton width="100%" height="48px" /> : (
+                                            <select
+                                                name="subjectId"
+                                                value={iaConfig.subjectId}
+                                                onChange={handleIaConfigChange}
+                                                className={styles.largeInput}
+                                                style={{ width: '100%' }}
+                                            >
+                                                <option value="">Select Subject</option>
+                                                {mySubjects.map(sub => (
+                                                    <option key={sub.id} value={sub.id}>{sub.name} ({sub.code}) - {sub.department}</option>
+                                                ))}
+                                            </select>
+                                        )}
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                         <label style={{ fontWeight: 600, color: '#374151', fontSize: '1rem' }}>CIE Number</label>
-                                        <div style={{ display: 'flex', gap: '0.5rem', background: '#f8fafc', padding: '6px', borderRadius: '10px', border: '1px solid #cbd5e1', height: '100%' }}>
-                                            {['1', '2', '3', '4', '5'].map(num => (
-                                                <button
-                                                    key={num}
-                                                    onClick={() => setIaConfig(prev => ({ ...prev, cieNumber: num }))}
-                                                    style={{
-                                                        flex: 1,
-                                                        padding: '8px',
-                                                        borderRadius: '8px',
-                                                        border: 'none',
-                                                        background: iaConfig.cieNumber === num ? '#2563eb' : 'transparent',
-                                                        color: iaConfig.cieNumber === num ? 'white' : '#64748b',
-                                                        fontWeight: 600,
-                                                        fontSize: '1rem',
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.2s',
-                                                        boxShadow: iaConfig.cieNumber === num ? '0 2px 4px rgba(37, 99, 235, 0.2)' : 'none'
-                                                    }}
-                                                >
-                                                    {num}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        {loading ? <Skeleton width="100%" height="48px" /> : (
+                                            <div style={{ display: 'flex', gap: '0.5rem', background: '#f8fafc', padding: '6px', borderRadius: '10px', border: '1px solid #cbd5e1', height: '100%' }}>
+                                                {['1', '2', '3', '4', '5'].map(num => (
+                                                    <button
+                                                        key={num}
+                                                        onClick={() => setIaConfig(prev => ({ ...prev, cieNumber: num }))}
+                                                        style={{
+                                                            flex: 1,
+                                                            padding: '8px',
+                                                            borderRadius: '8px',
+                                                            border: 'none',
+                                                            background: iaConfig.cieNumber === num ? '#2563eb' : 'transparent',
+                                                            color: iaConfig.cieNumber === num ? 'white' : '#64748b',
+                                                            fontWeight: 600,
+                                                            fontSize: '1rem',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s',
+                                                            boxShadow: iaConfig.cieNumber === num ? '0 2px 4px rgba(37, 99, 235, 0.2)' : 'none'
+                                                        }}
+                                                    >
+                                                        {num}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

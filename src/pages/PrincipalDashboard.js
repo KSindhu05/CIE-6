@@ -368,26 +368,32 @@ const PrincipalDashboard = () => {
             {/* Dynamic Content */}
             <div className={styles.sectionVisible}>
                 {activeTab === 'overview' && (
-                    loading ? <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading Dashboard...</div> :
-                        <OverviewSection
-                            stats={dashboardData?.stats}
-                            chartData={barData}
-                            branches={dashboardData?.branches}
-                            branchPerformance={dashboardData?.branchPerformance}
-                            lowPerformers={dashboardData?.lowPerformers}
-                            facultyAnalytics={dashboardData?.facultyAnalytics}
-                            schedule={dashboardData?.dates}
-                            approvals={dashboardData?.approvals}
-                            cieStats={dashboardData?.cieStats}
-                            trends={dashboardData?.trends}
-                            hodSubmissionStatus={dashboardData?.hodSubmissionStatus}
-                            onNavigate={setActiveTab}
-                        />
+                    <OverviewSection
+                        stats={dashboardData?.stats}
+                        chartData={barData}
+                        branches={dashboardData?.branches}
+                        branchPerformance={dashboardData?.branchPerformance}
+                        lowPerformers={dashboardData?.lowPerformers}
+                        facultyAnalytics={dashboardData?.facultyAnalytics}
+                        schedule={dashboardData?.dates}
+                        approvals={dashboardData?.approvals}
+                        cieStats={dashboardData?.cieStats}
+                        trends={dashboardData?.trends}
+                        hodSubmissionStatus={dashboardData?.hodSubmissionStatus}
+                        onNavigate={setActiveTab}
+                        loading={loading}
+                    />
                 )}
 
-                {activeTab === 'compliance' && <ComplianceSection hodSubmissionStatus={dashboardData?.hodSubmissionStatus} />}
+                {activeTab === 'compliance' && <ComplianceSection hodSubmissionStatus={dashboardData?.hodSubmissionStatus} loading={loading} />}
 
-                {activeTab === 'departments' && <DepartmentSection departments={departments} facultyList={facultyList} />}
+                {activeTab === 'departments' && (
+                    <DepartmentSection
+                        departments={dashboardData?.departments}
+                        facultyList={dashboardData?.faculty}
+                        loading={loading}
+                    />
+                )}
 
                 {activeTab === 'directory' && <DirectorySection
                     departments={departments}
@@ -395,6 +401,7 @@ const PrincipalDashboard = () => {
                     deptStudents={deptStudents}
                     handleDeptClick={handleDeptClick}
                     setSelectedDept={setSelectedDept}
+                    loading={loading}
                 />}
 
                 {activeTab === 'hod-management' && (
@@ -406,12 +413,13 @@ const PrincipalDashboard = () => {
                         user={user}
                         departments={departments}
                         onRefresh={handleRefreshHods}
+                        loading={loading}
                     />
                 )}
 
-                {activeTab === 'faculty' && <FacultyDirectorySection facultyMembers={facultyList} onRemove={handleRemoveFaculty} />}
+                {activeTab === 'faculty' && <FacultyDirectorySection facultyMembers={facultyList} onRemove={handleRemoveFaculty} loading={loading} />}
 
-                {activeTab === 'timetables' && <CIEScheduleSection schedules={timetables} onDownload={handleDownload} />}
+                {activeTab === 'timetables' && <CIEScheduleSection schedules={timetables} onDownload={handleDownload} loading={loading} />}
                 {activeTab === 'notifications' && <NotificationsSection
                     notifications={notifications}
                     recipientType={msgRecipientType}
@@ -423,8 +431,9 @@ const PrincipalDashboard = () => {
                     onSend={handleSendNotification}
                     onClear={handleClearNotifications}
                     onDelete={handleDeleteNotification}
+                    loading={loading}
                 />}
-                {activeTab === 'reports' && <ReportsSection reports={reports} onDownload={handleDownload} departments={departments} />}
+                {activeTab === 'reports' && <ReportsSection reports={reports} onDownload={handleDownload} departments={departments} loading={loading} />}
 
                 {activeTab === 'semester-management' && (
                     <div style={{ animation: 'fadeIn 0.6s ease' }}>

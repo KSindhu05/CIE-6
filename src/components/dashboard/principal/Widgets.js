@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { Line, Doughnut } from 'react-chartjs-2';
 import styles from '../../../pages/PrincipalDashboard.module.css';
+import Skeleton from '../../ui/Skeleton';
 
 
 export const StudentSentinel = memo(({ students = [] }) => {
@@ -60,7 +61,7 @@ export const StudentSentinel = memo(({ students = [] }) => {
     );
 });
 
-export const FacultyPerformanceWidget = memo(({ analytics = { avgScore: 0, passRate: 0, evaluated: 0, pending: 0 } }) => (
+export const FacultyPerformanceWidget = memo(({ analytics = { avgScore: 0, passRate: 0, evaluated: 0, pending: 0 }, loading }) => (
     <div className={styles.glassCard} style={{ borderRadius: '24px', border: 'none', background: 'white', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
             <h3 className={styles.chartTitle} style={{ margin: 0, fontSize: '1.1rem' }}>Faculty Pulse</h3>
@@ -69,27 +70,38 @@ export const FacultyPerformanceWidget = memo(({ analytics = { avgScore: 0, passR
             </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#3b82f6' }}>{analytics.avgScore}%</div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Avg Score</div>
-            </div>
-            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#10b981' }}>{analytics.passRate}%</div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Pass Rate</div>
-            </div>
-            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#f59e0b' }}>{analytics.evaluated}</div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Evaluated</div>
-            </div>
-            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#ef4444' }}>{analytics.pending}</div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Pending</div>
-            </div>
+            {loading ? (
+                [1, 2, 3, 4].map(i => (
+                    <div key={i} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', textAlign: 'center' }}>
+                        <Skeleton width="60px" height="24px" style={{ marginBottom: '8px' }} />
+                        <Skeleton width="40px" height="12px" />
+                    </div>
+                ))
+            ) : (
+                <>
+                    <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#3b82f6' }}>{analytics.avgScore}%</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Avg Score</div>
+                    </div>
+                    <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#10b981' }}>{analytics.passRate}%</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Pass Rate</div>
+                    </div>
+                    <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#f59e0b' }}>{analytics.evaluated}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Evaluated</div>
+                    </div>
+                    <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#ef4444' }}>{analytics.pending}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Pending</div>
+                    </div>
+                </>
+            )}
         </div>
     </div>
 ));
 
-export const ScheduleWidget = memo(({ schedule = [] }) => (
+export const ScheduleWidget = memo(({ schedule = [], loading }) => (
     <div className={styles.glassCard} style={{ borderRadius: '24px', border: 'none', background: 'linear-gradient(145deg, #ffffff, #fefce8)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
             <div style={{ padding: '6px', background: '#fef9c3', borderRadius: '8px', color: '#ca8a04' }}>
@@ -98,7 +110,17 @@ export const ScheduleWidget = memo(({ schedule = [] }) => (
             <h3 className={styles.chartTitle} style={{ margin: 0, fontSize: '1.1rem' }}>Today's Schedule</h3>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {schedule.length > 0 ? schedule.map((item) => (
+            {loading ? (
+                [1, 2, 3].map(i => (
+                    <div key={i} style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'white', padding: '0.75rem 1rem', borderRadius: '12px' }}>
+                        <Skeleton width="40px" height="14px" />
+                        <div style={{ flex: 1 }}>
+                            <Skeleton width="120px" height="14px" style={{ marginBottom: '6px' }} />
+                            <Skeleton width="80px" height="10px" />
+                        </div>
+                    </div>
+                ))
+            ) : schedule.length > 0 ? schedule.map((item) => (
                 <div key={item.id} style={{
                     display: 'flex', gap: '1rem', alignItems: 'center', background: 'white', padding: '0.75rem 1rem', borderRadius: '12px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.02)', borderLeft: item.type === 'Urgent' ? '4px solid #ef4444' : '4px solid #3b82f6'
@@ -145,7 +167,7 @@ export const ConfidenceScoreWidget = memo(({ branches = [], branchPerformance = 
     </div>
 ));
 
-export const FocusListWidget = memo(({ branches = [], branchPerformance = [], hodSubmissionStatus = [] }) => {
+export const FocusListWidget = memo(({ branches = [], branchPerformance = [], hodSubmissionStatus = [], loading }) => {
     const criticalDepts = branches
         .map((dept, i) => ({
             name: dept,
@@ -160,7 +182,14 @@ export const FocusListWidget = memo(({ branches = [], branchPerformance = [], ho
                 <AlertTriangle size={20} /> Focus Required
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {criticalDepts.length > 0 ? criticalDepts.map((d, i) => (
+                {loading ? (
+                    [1, 2].map(i => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px' }}>
+                            <Skeleton width="60px" height="14px" />
+                            <Skeleton width="80px" height="12px" />
+                        </div>
+                    ))
+                ) : criticalDepts.length > 0 ? criticalDepts.map((d, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fef2f2', borderRadius: '8px' }}>
                         <span style={{ fontWeight: 600, color: '#7f1d1d', fontSize: '0.9rem' }}>{d.name}</span>
                         <div style={{ textAlign: 'right' }}>
@@ -178,7 +207,7 @@ export const FocusListWidget = memo(({ branches = [], branchPerformance = [], ho
     );
 });
 
-export const YearComparisonWidget = memo(({ trends = { labels: [], datasets: [] } }) => {
+export const YearComparisonWidget = memo(({ trends = { labels: [], datasets: [] }, loading }) => {
     const data = {
         labels: trends.labels || [],
         datasets: [
@@ -207,8 +236,8 @@ export const YearComparisonWidget = memo(({ trends = { labels: [], datasets: [] 
                 <h3 className={styles.chartTitle} style={{ margin: 0, fontSize: '1.1rem' }}>Trend Analysis</h3>
                 <span style={{ fontSize: '0.8rem', background: '#f1f5f9', padding: '4px 8px', borderRadius: '12px', color: '#64748b' }}>Last 5 Years</span>
             </div>
-            <div style={{ height: '220px' }}>
-                <Line data={data} options={options} />
+            <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {loading ? <Skeleton width="100%" height="100%" /> : <Line data={data} options={options} />}
             </div>
         </div>
     );
@@ -267,7 +296,7 @@ export const ActionCenter = memo(() => {
     );
 });
 
-export const PendingApprovalsWidget = memo(({ approvals = [] }) => {
+export const PendingApprovalsWidget = memo(({ approvals = [], loading }) => {
     const [reviewToast, setReviewToast] = useState('');
     React.useEffect(() => { if (reviewToast) { const t = setTimeout(() => setReviewToast(''), 2500); return () => clearTimeout(t); } }, [reviewToast]);
     return (
@@ -277,10 +306,23 @@ export const PendingApprovalsWidget = memo(({ approvals = [] }) => {
                     <h3 className={styles.chartTitle} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
                         <ShieldCheck size={20} color="#8b5cf6" /> Pending Approvals
                     </h3>
-                    <span style={{ background: '#8b5cf6', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>{approvals.length} New</span>
+                    <span style={{ background: '#8b5cf6', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>{loading ? '...' : approvals.length} New</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto' }}>
-                    {approvals.length > 0 ? approvals.map(item => (
+                    {loading ? (
+                        [1, 2, 3].map(i => (
+                            <div key={i} style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '12px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <Skeleton width="100px" height="14px" />
+                                    <Skeleton width="40px" height="18px" />
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Skeleton width="80px" height="12px" />
+                                    <Skeleton width="60px" height="24px" />
+                                </div>
+                            </div>
+                        ))
+                    ) : approvals.length > 0 ? approvals.map(item => (
                         <div key={item.id} style={{ padding: '0.75rem', background: '#fcfaff', border: '1px solid #f3e8ff', borderRadius: '12px', transition: 'background 0.2s' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                 <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#1e293b' }}>{item.subject}</span>
@@ -293,7 +335,7 @@ export const PendingApprovalsWidget = memo(({ approvals = [] }) => {
                         </div>
                     )) : <div style={{ color: '#94a3b8', textAlign: 'center' }}>No pending approvals</div>}
                 </div>
-                <button style={{ marginTop: 'auto', width: '100%', padding: '0.75rem', background: 'transparent', border: 'none', color: '#8b5cf6', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>View All Requests</button>
+                {!loading && <button style={{ marginTop: 'auto', width: '100%', padding: '0.75rem', background: 'transparent', border: 'none', color: '#8b5cf6', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>View All Requests</button>}
             </div>
             {reviewToast && <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 10001, padding: '0.85rem 1.5rem', borderRadius: '12px', background: '#dcfce7', color: '#166534', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', fontWeight: 600, fontSize: '0.9rem', maxWidth: '400px' }}>{reviewToast}</div>}
         </>
@@ -330,7 +372,7 @@ export const CIEStatsWidget = memo(({ conducted = 65, pending = 15, graded = 20 
     );
 });
 
-export const LowPerformersWidget = memo(({ data }) => {
+export const LowPerformersWidget = memo(({ data, loading }) => {
     const [notifyToast, setNotifyToast] = useState('');
     React.useEffect(() => { if (notifyToast) { const t = setTimeout(() => setNotifyToast(''), 2500); return () => clearTimeout(t); } }, [notifyToast]);
     return (
@@ -341,11 +383,17 @@ export const LowPerformersWidget = memo(({ data }) => {
                         <AlertTriangle size={20} /> Action Required: Low Performers
                     </h3>
                     <span style={{ fontSize: '0.8rem', color: '#991b1b', background: '#fee2e2', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
-                        {data?.length || 0} Students
+                        {loading ? '...' : (data?.length || 0)} Students
                     </span>
                 </div>
 
-                {(!data || data.length === 0) ? (
+                {loading ? (
+                    <div style={{ padding: '1rem' }}>
+                        {[1, 2, 3].map(i => (
+                            <Skeleton key={i} width="100%" height="50px" style={{ marginBottom: '8px', borderRadius: '8px' }} />
+                        ))}
+                    </div>
+                ) : (!data || data.length === 0) ? (
                     <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No low performers found.
                     </div>

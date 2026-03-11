@@ -11,6 +11,7 @@ import styles from './StudentDashboard.module.css';
 import AcademicSummary from '../components/dashboard/student/AcademicSummary';
 import AcademicInsights from '../components/dashboard/student/AcademicInsights';
 import authenticatedFetch from '../utils/authFetch';
+import Skeleton from '../components/ui/Skeleton';
 
 const StudentDashboard = () => {
     const [activeSection, setActiveSection] = useState(() => {
@@ -36,6 +37,7 @@ const StudentDashboard = () => {
     const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
     const [facultyList, setFacultyList] = useState([]); // Added facultyList state
     const [semesterStatus, setSemesterStatus] = useState('ACTIVE');
+    const [loading, setLoading] = useState(true);
 
     // Student Profile State
     const [studentInfo, setStudentInfo] = useState({
@@ -189,7 +191,9 @@ const StudentDashboard = () => {
             } catch (e) { console.error("Error fetching faculty:", e); }
         };
 
-        fetchUpdates();
+        fetchMarks();
+        loadSemesterStatus();
+        fetchUpdates().finally(() => setLoading(false));
     }, [user]);
 
     const [selectedSemester, setSelectedSemester] = useState('5');
@@ -269,7 +273,17 @@ const StudentDashboard = () => {
                             <table className={styles.table}>
                                 <thead><tr><th>Subject</th><th>{latestCie.label}</th><th>Att %</th><th>Total Progress</th><th style={{ background: '#fefce8', color: '#a16207' }}>Remarks</th></tr></thead>
                                 <tbody>
-                                    {realSubjects.length > 0 ? realSubjects.map((sub, idx) => {
+                                    {loading ? (
+                                        Array.from({ length: 5 }).map((_, i) => (
+                                            <tr key={i}>
+                                                <td><Skeleton width="150px" height="20px" /></td>
+                                                <td><Skeleton width="50px" height="20px" /></td>
+                                                <td><Skeleton width="50px" height="20px" /></td>
+                                                <td><Skeleton width="100%" height="25px" /></td>
+                                                <td><Skeleton width="150px" height="20px" /></td>
+                                            </tr>
+                                        ))
+                                    ) : realSubjects.length > 0 ? realSubjects.map((sub, idx) => {
                                         const mark = realMarks.find(m => m.name === sub.name) || {};
                                         const total = mark.totalScore || 0;
                                         const maxMarks = 250;
@@ -313,7 +327,7 @@ const StudentDashboard = () => {
                             </table>
                         </div>
                     </div>
-                    <AcademicInsights realMarks={realMarks} />
+                    <AcademicInsights realMarks={realMarks} loading={loading} />
                 </div>
             </div>
         );
@@ -533,7 +547,16 @@ const StudentDashboard = () => {
                     <table className={styles.table}>
                         <thead><tr><th>Code</th><th>Subject Name</th><th>Department</th><th>Semester</th></tr></thead>
                         <tbody>
-                            {realSubjects.length > 0 ? realSubjects.map((sub, idx) => (
+                            {loading ? (
+                                Array.from({ length: 6 }).map((_, i) => (
+                                    <tr key={i}>
+                                        <td><Skeleton width="80px" height="24px" /></td>
+                                        <td><Skeleton width="200px" height="20px" /></td>
+                                        <td><Skeleton width="100px" height="20px" /></td>
+                                        <td><Skeleton width="40px" height="20px" /></td>
+                                    </tr>
+                                ))
+                            ) : realSubjects.length > 0 ? realSubjects.map((sub, idx) => (
                                 <tr key={idx} style={{ animation: `fadeIn 0.3s ease-out ${idx * 0.05}s backwards` }}>
                                     <td><span className={styles.codeBadge}>{sub.code}</span></td>
                                     <td><span style={{ fontWeight: 600 }}>{sub.name}</span></td>
@@ -550,7 +573,18 @@ const StudentDashboard = () => {
     const renderFaculty = () => (
         <div className={styles.detailsContainer}>
             <div className={styles.facultyGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem', animation: 'fadeIn 0.8s ease-out' }}>
-                {facultyList.length > 0 ? facultyList.map((fac, idx) => (
+                {loading ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className={styles.facultyCard}>
+                            <Skeleton variant="circle" width="64px" height="64px" style={{ marginBottom: '1rem' }} />
+                            <Skeleton width="140px" height="24px" style={{ marginBottom: '0.5rem' }} />
+                            <Skeleton width="100px" height="16px" style={{ marginBottom: '1rem' }} />
+                            <div style={{ width: '100%', height: '1px', background: 'var(--border-color)', margin: '0.75rem 0' }}></div>
+                            <Skeleton width="180px" height="16px" style={{ marginBottom: '0.5rem' }} />
+                            <Skeleton width="80px" height="16px" />
+                        </div>
+                    ))
+                ) : facultyList.length > 0 ? facultyList.map((fac, idx) => (
                     <div key={idx} className={styles.facultyCard} style={{ animation: `fadeIn 0.5s ease-out ${idx * 0.1}s backwards` }}>
                         <div style={{ width: '64px', height: '64px', background: '#eff6ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', color: '#3b82f6', border: '1px solid #bfdbfe' }}><User size={32} /></div>
                         <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: '700' }}>{fac.name}</h3>
@@ -641,11 +675,19 @@ const StudentDashboard = () => {
                 <header className={styles.header}>
                     <div className={styles.headerLeft}>
                         <h1 className={styles.welcomeText}>
-                            {activeSection === 'Overview' ?
+                            {loading ? (
+                                <Skeleton width="300px" height="40px" />
+                            ) : activeSection === 'Overview' ? (
                                 <span className={styles.typewriter}>{typedText}</span>
-                                : activeSection}
+                            ) : activeSection}
                         </h1>
-                        <p className={styles.subtitle}>{studentInfo.branch} | Semester: {studentInfo.semester} | Reg No: {studentInfo.rollNo}</p>
+                        <p className={styles.subtitle}>
+                            {loading ? (
+                                <Skeleton width="250px" height="20px" style={{ marginTop: '8px' }} />
+                            ) : (
+                                <>{studentInfo.branch} | Semester: {studentInfo.semester} | Reg No: {studentInfo.rollNo}</>
+                            )}
+                        </p>
                     </div>
                 </header>
 
@@ -653,6 +695,7 @@ const StudentDashboard = () => {
                     <AcademicSummary
                         studentInfo={studentInfo}
                         cieStatus={cieStatus}
+                        loading={loading}
                         // Risk Logic: High if Aggregate < 40 OR Attendance < 75. Moderate if Aggregate < 60. Else Low.
                         riskLevel={
                             (parseFloat(studentInfo.cgpa) < 40) ? 'High' :

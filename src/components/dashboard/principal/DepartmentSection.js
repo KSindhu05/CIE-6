@@ -3,6 +3,7 @@ import { Users, Briefcase, AlertTriangle, ArrowRight, TrendingUp } from 'lucide-
 import { Bar } from 'react-chartjs-2';
 import styles from '../../../pages/PrincipalDashboard.module.css';
 import API_BASE_URL from '../../../config/api';
+import Skeleton from '../../ui/Skeleton';
 
 import { useAuth } from '../../../context/AuthContext';
 import authenticatedFetch from '../../../utils/authFetch';
@@ -49,7 +50,8 @@ const DepartmentCard = ({ dept, onSelect }) => {
             justifyContent: 'space-between',
             borderLeft: `4px solid ${dept.color}`,
             transition: 'transform 0.2s',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            height: '240px'
         }}
             onClick={() => onSelect(dept)}
             onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-5px)'}
@@ -76,25 +78,31 @@ const DepartmentCard = ({ dept, onSelect }) => {
                             <Users size={12} color="#64748b" />
                             <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Students</span>
                         </div>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
-                            {loading ? '...' : (stats?.studentCount || 0)}
-                        </span>
+                        {loading ? <Skeleton width="40px" height="18px" /> : (
+                            <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
+                                {stats?.studentCount || 0}
+                            </span>
+                        )}
                     </div>
                     <div style={{ background: '#fef2f2', padding: '0.5rem 0.6rem', borderRadius: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
                             <AlertTriangle size={12} color="#ef4444" />
                             <span style={{ fontSize: '0.7rem', color: '#ef4444' }}>At Risk</span>
                         </div>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ef4444' }}>
-                            {loading ? '...' : (stats?.atRiskCount || 0)}
-                        </span>
+                        {loading ? <Skeleton width="30px" height="18px" /> : (
+                            <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ef4444' }}>
+                                {stats?.atRiskCount || 0}
+                            </span>
+                        )}
                     </div>
                 </div>
 
                 <div style={{ marginTop: '0.8rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontSize: '0.8rem' }}>
                         <span style={{ color: '#64748b' }}>Pass Percentage</span>
-                        <span style={{ fontWeight: 600, color: '#16a34a' }}>{loading ? '-' : stats?.passPercentage}%</span>
+                        {loading ? <Skeleton width="40px" height="14px" /> : (
+                            <span style={{ fontWeight: 600, color: '#16a34a' }}>{stats?.passPercentage}%</span>
+                        )}
                     </div>
                     <div style={{ width: '100%', height: '5px', background: '#e2e8f0', borderRadius: '3px' }}>
                         <div style={{
@@ -200,9 +208,11 @@ const DepartmentDetails = ({ dept, onBack, allFaculty }) => {
                         <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Total Students</span>
                         <Users size={20} color='#3b82f6' />
                     </div>
-                    <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#0f172a' }}>
-                        {loading ? '...' : (stats?.studentCount || 0)}
-                    </div>
+                    {loading ? <Skeleton width="60px" height="32px" /> : (
+                        <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#0f172a' }}>
+                            {stats?.studentCount || 0}
+                        </div>
+                    )}
                 </div>
 
                 {[
@@ -215,9 +225,11 @@ const DepartmentDetails = ({ dept, onBack, allFaculty }) => {
                             <span style={{ color: '#64748b', fontSize: '0.9rem' }}>{stat.label}</span>
                             <stat.icon size={20} color={stat.color} />
                         </div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#0f172a' }}>
-                            {loading ? '...' : stat.value}
-                        </div>
+                        {loading ? <Skeleton width="60px" height="32px" /> : (
+                            <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#0f172a' }}>
+                                {stat.value}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>

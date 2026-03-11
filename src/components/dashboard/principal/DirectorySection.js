@@ -4,6 +4,7 @@ import styles from '../../../pages/PrincipalDashboard.module.css';
 import { useAuth } from '../../../context/AuthContext';
 import authenticatedFetch from '../../../utils/authFetch';
 import API_BASE_URL from '../../../config/api';
+import Skeleton from '../../ui/Skeleton';
 
 const StudentProfileModal = ({ selectedStudentProfile, setSelectedStudentProfile, selectedDept }) => {
     const [localToast, setLocalToast] = React.useState('');
@@ -74,7 +75,7 @@ const StudentProfileModal = ({ selectedStudentProfile, setSelectedStudentProfile
     );
 };
 
-export const DirectorySection = memo(({ departments = [], selectedDept, deptStudents, handleDeptClick, setSelectedDept, setSelectedStudentProfile: propSetSelectedStudentProfile }) => {
+export const DirectorySection = memo(({ departments = [], selectedDept, deptStudents, handleDeptClick, setSelectedDept, setSelectedStudentProfile: propSetSelectedStudentProfile, loading: parentLoading }) => {
     const { user } = useAuth();
     const [semester, setSemester] = useState('2nd');
     const [section, setSection] = useState('A');
@@ -112,6 +113,7 @@ export const DirectorySection = memo(({ departments = [], selectedDept, deptStud
     // State for students fetched from API
     const [apiStudents, setApiStudents] = useState([]);
     const [localLoading, setLocalLoading] = useState(false);
+    const effectiveLoading = parentLoading || localLoading;
 
     // Fetch students when department changes (or on mount if all)
     React.useEffect(() => {
@@ -176,7 +178,31 @@ export const DirectorySection = memo(({ departments = [], selectedDept, deptStud
 
     const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
 
-    if (!selectedDept) {
+        if (parentLoading && departments.length === 0) {
+            return (
+                <div className={styles.sectionVisible}>
+                    <h3 className={styles.chartTitle} style={{ marginBottom: '1.5rem' }}>Select Department</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className={styles.glassCard} style={{ borderLeft: '4px solid #e2e8f0' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
+                                    <Skeleton width="120px" height="24px" />
+                                    <Skeleton width="40px" height="20px" />
+                                </div>
+                                <div style={{ color: '#64748b', fontSize: '0.9rem' }}>
+                                    <Skeleton width="80px" height="14px" style={{ marginBottom: '8px' }} />
+                                    <Skeleton width="120px" height="14px" />
+                                </div>
+                                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                    <Skeleton width="100px" height="16px" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className={styles.sectionVisible}>
                 <h3 className={styles.chartTitle} style={{ marginBottom: '1.5rem' }}>Select Department</h3>
@@ -210,7 +236,6 @@ export const DirectorySection = memo(({ departments = [], selectedDept, deptStud
                 </div>
             </div>
         );
-    }
 
     return (
         <div className={styles.sectionVisible}>
@@ -388,7 +413,25 @@ export const DirectorySection = memo(({ departments = [], selectedDept, deptStud
                         </tr>
                     </thead>
                     <tbody>
-                        {paginatedStudents.length > 0 ? (
+                        {effectiveLoading ? (
+                            [1, 2, 3, 4, 5].map(i => (
+                                <tr key={i}>
+                                    <td><Skeleton width="20px" height="20px" /></td>
+                                    <td><Skeleton width="40px" height="14px" /></td>
+                                    <td><Skeleton width="100px" height="14px" /></td>
+                                    <td><Skeleton width="150px" height="14px" /></td>
+                                    <td><Skeleton width="40px" height="14px" /></td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Skeleton width="80px" height="6px" />
+                                            <Skeleton width="30px" height="14px" />
+                                        </div>
+                                    </td>
+                                    <td><Skeleton width="80px" height="20px" /></td>
+                                    <td><Skeleton width="100px" height="32px" /></td>
+                                </tr>
+                            ))
+                        ) : paginatedStudents.length > 0 ? (
                             paginatedStudents.map((student, index) => (
                                 <tr key={student.id} onClick={() => handleViewProfile(student)} style={{ cursor: 'pointer', background: selectedStudents.includes(student.id) ? '#f0f9ff' : 'transparent' }}>
                                     <td onClick={(e) => e.stopPropagation()}>
