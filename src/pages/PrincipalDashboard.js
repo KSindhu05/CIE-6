@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../components/GlobalDialogProvider';
+import API_BASE_URL from '../config/api';
+import authenticatedFetch from '../utils/authFetch';
 import styles from './PrincipalDashboard.module.css';
 import {
     LayoutDashboard, Users, ShieldCheck, Calendar, BarChart2,
@@ -29,12 +31,17 @@ import {
     fetchSemesterStatus, updateSemesterStatus, resetMarks, resetFaculty, cleanupData, shiftSemesters
 } from '../services/api';
 
-const API_BASE_URL = 'http://127.0.0.1:8084/api';
 
 const PrincipalDashboard = () => {
     const { user, logout } = useAuth();
     const { showConfirm } = useDialog();
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState(() => {
+        return sessionStorage.getItem('principalActiveTab') || 'overview';
+    });
+
+    useEffect(() => {
+        sessionStorage.setItem('principalActiveTab', activeTab);
+    }, [activeTab]);
 
     // Data States
     const [dashboardData, setDashboardData] = useState(null);
@@ -80,12 +87,12 @@ const PrincipalDashboard = () => {
                     reps,
                     semStatus
                 ] = await Promise.all([
-                    fetchPrincipalDashboard(token),
-                    fetchAllFaculty(token),
-                    fetchHods(token),
-                    fetchTimetables(token),
-                    fetchNotifications(token),
-                    fetchReports(token),
+                    fetchPrincipalDashboard(),
+                    fetchAllFaculty(),
+                    fetchHods(),
+                    fetchTimetables(),
+                    fetchNotifications(),
+                    fetchReports(),
                     fetchSemesterStatus()
                 ]);
 
@@ -129,9 +136,7 @@ const PrincipalDashboard = () => {
         try {
             const token = user?.token;
             const apiType = item.apiType || item.name.toLowerCase().replace(/ /g, '_');
-            const response = await fetch(`${API_BASE_URL}/principal/reports/download/${apiType}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await authenticatedFetch(`${API_BASE_URL}/principal/reports/download/${apiType}`);
 
             if (!response.ok) throw new Error('Failed to generate report');
 
@@ -227,9 +232,8 @@ const PrincipalDashboard = () => {
     const handleSendNotification = useCallback(async () => {
         if (!msgText.trim()) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/notifications/broadcast`, {
+            const res = await authenticatedFetch(`${API_BASE_URL}/notifications/broadcast`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     senderId: user?.username || 'principal',
                     message: msgText,
@@ -264,9 +268,8 @@ const PrincipalDashboard = () => {
     const handleClearNotifications = useCallback(async () => {
         try {
             const token = user?.token;
-            await fetch(`${API_BASE_URL}/notifications/clear`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+            await authenticatedFetch(`${API_BASE_URL}/notifications/clear`, {
+                method: 'DELETE'
             });
             setNotifications([]);
             showToast('Notifications cleared', 'info');
@@ -279,9 +282,8 @@ const PrincipalDashboard = () => {
     const handleDeleteNotification = useCallback(async (id) => {
         try {
             const token = user?.token;
-            await fetch(`${API_BASE_URL}/notifications/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+            await authenticatedFetch(`${API_BASE_URL}/notifications/${id}`, {
+                method: 'DELETE'
             });
             setNotifications(prev => prev.filter(n => n.id !== id));
         } catch (err) {
@@ -293,12 +295,12 @@ const PrincipalDashboard = () => {
     const handleCreateHod = useCallback(async (hodData) => {
         try {
             const token = user?.token;
-            const newHod = await createHod(token, hodData);
+            const newHod = await createHod(hodData);
             setHodList(prev => [...prev, newHod]);
             showToast('HOD Registered Successfully', 'success');
             // Re-fetch dashboard data so the new department appears immediately
             try {
-                const dashData = await fetchPrincipalDashboard(token);
+                const dashData = await fetchPrincipalDashboard();
                 if (dashData) setDashboardData(dashData);
             } catch (e) { /* silent — department will appear on next reload */ }
         } catch (error) {
@@ -309,7 +311,7 @@ const PrincipalDashboard = () => {
     const handleRefreshHods = useCallback(async () => {
         try {
             const token = user?.token;
-            const hods = await fetchHods(token);
+            const hods = await fetchHods();
             if (hods) {
                 setHodList(hods);
                 showToast('HOD List Updated', 'success');
@@ -322,7 +324,7 @@ const PrincipalDashboard = () => {
     const handleUpdateHod = useCallback(async (id, hodData) => {
         try {
             const token = user?.token;
-            const updated = await updateHod(token, id, hodData);
+            const updated = await updateHod(id, hodData);
             setHodList(prev => prev.map(h => h.id === id ? updated : h));
             showToast('HOD Updated Successfully', 'success');
         } catch (error) {
@@ -333,7 +335,7 @@ const PrincipalDashboard = () => {
     const handleDeleteHod = useCallback(async (id) => {
         try {
             const token = user?.token;
-            await deleteHod(token, id);
+            await deleteHod(id);
             setHodList(prev => prev.filter(h => h.id !== id));
             showToast('HOD Removed Successfully', 'success');
         } catch (error) {
@@ -513,7 +515,7 @@ const PrincipalDashboard = () => {
                                     onClick={async () => {
                                         const newStatus = semesterStatus === 'ACTIVE' ? 'COMPLETED' : 'ACTIVE';
                                         try {
-                                            await updateSemesterStatus(user?.token, newStatus);
+                                            await updateSemesterStatus(newStatus);
                                             setSemesterStatus(newStatus);
                                             showToast(`Semester marked as ${newStatus}`, 'success');
                                         } catch (e) { showToast('Failed to update status', 'error'); }
@@ -580,7 +582,7 @@ const PrincipalDashboard = () => {
                                         });
                                         if (confirmed) {
                                             setResetLoading(true);
-                                            resetMarks(user?.token)
+                                            resetMarks()
                                                 .then(() => showToast('All Marks Cleared', 'success'))
                                                 .catch(() => showToast('Failed to clear marks', 'error'))
                                                 .finally(() => setResetLoading(false));
@@ -651,7 +653,7 @@ const PrincipalDashboard = () => {
                                         });
                                         if (confirmed) {
                                             setResetLoading(true);
-                                            shiftSemesters(user?.token)
+                                            shiftSemesters()
                                                 .then(() => showToast('Students Shifted Successfully', 'success'))
                                                 .catch(() => showToast('Failed to shift semesters', 'error'))
                                                 .finally(() => setResetLoading(false));
@@ -722,7 +724,7 @@ const PrincipalDashboard = () => {
                                                 confirmText: 'Reset'
                                             });
                                             if (confirmed) {
-                                                resetFaculty(user?.token)
+                                                resetFaculty()
                                                     .then(() => showToast('Faculty Workloads Reset', 'success'))
                                                     .catch(() => showToast('Failed to reset faculty', 'error'));
                                             }
@@ -756,7 +758,7 @@ const PrincipalDashboard = () => {
                                                 confirmText: 'Cleanup'
                                             });
                                             if (confirmed) {
-                                                cleanupData(user?.token)
+                                                cleanupData()
                                                     .then(() => showToast('System Cleanup Done', 'success'))
                                                     .catch(() => showToast('Cleanup failed', 'error'));
                                             }

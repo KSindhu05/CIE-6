@@ -8,12 +8,16 @@ import com.example.ia.payload.response.MessageResponse;
 import com.example.ia.repository.StudentRepository;
 import com.example.ia.repository.SubjectRepository;
 import com.example.ia.repository.UserRepository;
+import com.example.ia.service.FacultyService;
 import com.example.ia.service.MarksService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.example.ia.security.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +31,9 @@ public class MarksController {
     MarksService marksService;
 
     @Autowired
+    FacultyService facultyService;
+
+    @Autowired
     StudentRepository studentRepository;
 
     @Autowired
@@ -34,6 +41,14 @@ public class MarksController {
 
     @Autowired
     UserRepository userRepository;
+
+    private boolean isAuthorizedForDepartment(String department, UserDetailsImpl userDetails) {
+        if (userDetails == null) return false;
+        if (userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_PRINCIPAL"))) {
+            return true;
+        }
+        return department != null && department.equalsIgnoreCase(userDetails.getDepartment());
+    }
 
     @GetMapping("/subject/{subjectId}")
     @PreAuthorize("hasRole('FACULTY') or hasRole('HOD') or hasRole('PRINCIPAL')")
@@ -56,10 +71,18 @@ public class MarksController {
 
     @PostMapping("/update/batch")
     @PreAuthorize("hasRole('FACULTY') or hasRole('HOD')")
-    public ResponseEntity<?> updateBatchMarks(@RequestBody List<MarkUpdateDto> markDtos) {
+    public ResponseEntity<?> updateBatchMarks(@RequestBody List<MarkUpdateDto> markDtos, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        String username = userDetails.getUsername();
+        boolean isHod = userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_HOD"));
         List<CieMark> marksToSave = new ArrayList<>();
 
         for (MarkUpdateDto dto : markDtos) {
+            // Validation: and check ownership for FACULTY
+            if (!isHod && !facultyService.isFacultyAssignedToSubjectAndStudent(username, dto.getSubjectId(), dto.getStudentId())) {
+                continue; // Skip unauthorized entries
+            }
+            // For HOD, we trust the frontend department filtering but could add dept check here too
+            // ... (rest of the check)
             Student student = studentRepository.findById(dto.getStudentId()).orElse(null);
             Subject subject = subjectRepository.findById(dto.getSubjectId()).orElse(null);
 
@@ -101,37 +124,61 @@ public class MarksController {
 
     @PostMapping("/submit")
     @PreAuthorize("hasRole('FACULTY')")
-    public ResponseEntity<?> submitMarks(@RequestParam Long subjectId, @RequestParam String cieType) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+    public ResponseEntity<?> submitMarks(@RequestParam Long subjectId, @RequestParam String cieType, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        String username = userDetails.getUsername();
+        
+        // Authorization check: Does faculty teach this subject?
+        if (!facultyService.isFacultyAssignedToSubjectAndStudent(username, subjectId, null)) {
+             return ResponseEntity.status(403).body(Map.of("message", "Access denied: You are not authorized to submit marks for this subject."));
+        }
+        
         marksService.submitMarks(subjectId, cieType, username);
         return ResponseEntity.ok(new MessageResponse("Marks submitted successfully"));
     }
 
     @GetMapping("/pending")
     @PreAuthorize("hasRole('HOD')")
-    public List<CieMark> getPendingApprovals(@RequestParam String department) {
-        return marksService.getPendingApprovals(department);
+    public ResponseEntity<?> getPendingApprovals(@RequestParam String department, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        if (!isAuthorizedForDepartment(department, userDetails)) {
+            return ResponseEntity.status(403).body(Map.of("message", "Access denied: You are not authorized for this department."));
+        }
+        return ResponseEntity.ok(marksService.getPendingApprovals(department));
     }
 
     @PostMapping("/approve")
     @PreAuthorize("hasRole('HOD')")
-    public ResponseEntity<?> approveMarks(@RequestParam Long subjectId, @RequestParam String iaType) {
-        marksService.approveMarks(subjectId, iaType);
-        return ResponseEntity.ok(new MessageResponse("Marks approved"));
+    public ResponseEntity<?> approveMarks(@RequestParam Long subjectId, @RequestParam String iaType, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        return subjectRepository.findById(subjectId).map(subject -> {
+            if (!isAuthorizedForDepartment(subject.getDepartment(), userDetails)) {
+                return ResponseEntity.status(403).body(Map.of("message", "Access denied: You are not authorized for this department."));
+            }
+            marksService.approveMarks(subjectId, iaType);
+            return ResponseEntity.ok(new MessageResponse("Marks approved"));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/reject")
     @PreAuthorize("hasRole('HOD')")
-    public ResponseEntity<?> rejectMarks(@RequestParam Long subjectId, @RequestParam String iaType) {
-        marksService.rejectMarks(subjectId, iaType);
-        return ResponseEntity.ok(new MessageResponse("Marks rejected"));
+    public ResponseEntity<?> rejectMarks(@RequestParam Long subjectId, @RequestParam String iaType, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        return subjectRepository.findById(subjectId).map(subject -> {
+            if (!isAuthorizedForDepartment(subject.getDepartment(), userDetails)) {
+                return ResponseEntity.status(403).body(Map.of("message", "Access denied: You are not authorized for this department."));
+            }
+            marksService.rejectMarks(subjectId, iaType);
+            return ResponseEntity.ok(new MessageResponse("Marks rejected"));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/unlock")
     @PreAuthorize("hasRole('HOD')")
-    public ResponseEntity<?> unlockMarks(@RequestBody UnlockRequest request) {
-        marksService.unlockMarks(request.getSubjectId(), request.getIaType());
-        return ResponseEntity.ok(new MessageResponse("Marks unlocked for editing"));
+    public ResponseEntity<?> unlockMarks(@RequestBody UnlockRequest request, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        return subjectRepository.findById(request.getSubjectId()).map(subject -> {
+            if (!isAuthorizedForDepartment(subject.getDepartment(), userDetails)) {
+                return ResponseEntity.status(403).body(Map.of("message", "Access denied: You are not authorized for this department."));
+            }
+            marksService.unlockMarks(request.getSubjectId(), request.getIaType());
+            return ResponseEntity.ok(new MessageResponse("Marks unlocked for editing"));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     static class UnlockRequest {

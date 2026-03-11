@@ -6,6 +6,7 @@ import { useDialog } from '../components/GlobalDialogProvider';
 import { LayoutDashboard, Users, FilePlus, Save, AlertCircle, Phone, FileText, CheckCircle, Search, Filter, Mail, X, Download, Clock, BarChart2, TrendingUp, TrendingDown, Award, ClipboardList, AlertTriangle, Edit3, Edit, Calendar, UserCheck, BookOpen, Upload, Megaphone, Lock, Bell, MapPin, Trash2, Building2, Send, RefreshCw, MessageSquare } from 'lucide-react';
 import { facultyData, facultyProfiles, facultySubjects, studentsList, labSchedule, getMenteesForFaculty } from '../utils/mockData';
 import styles from './FacultyDashboard.module.css';
+import authenticatedFetch from '../utils/authFetch';
 
 
 
@@ -21,7 +22,13 @@ const calculateGradeFromPercentage = (percentage) => {
 const FacultyDashboard = () => {
     const { user } = useAuth();
     const { showConfirm, showPrompt } = useDialog();
-    const [activeSection, setActiveSection] = useState('Overview');
+    const [activeSection, setActiveSection] = useState(() => {
+        return sessionStorage.getItem('facultyActiveSection') || 'Overview';
+    });
+
+    React.useEffect(() => {
+        sessionStorage.setItem('facultyActiveSection', activeSection);
+    }, [activeSection]);
     const [selectedSubject, setSelectedSubject] = useState(null);
     const [selectedCieDept, setSelectedCieDept] = useState(null); // New state for Dept selection in CIE Entry
     const [selectedOverviewDept, setSelectedOverviewDept] = useState(null); // New state for Dept selection in Overview
@@ -211,8 +218,7 @@ const FacultyDashboard = () => {
     const fetchAnalytics = React.useCallback(async () => {
         if (!user || !user.token) return;
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}` };
-            const anRes = await fetch(`${API_BASE_URL}/faculty/analytics`, { headers });
+            const anRes = await authenticatedFetch(`${API_BASE_URL}/faculty/analytics`);
             if (anRes.ok) {
                 const data = await anRes.json();
                 setFacultyClassAnalytics(data);
@@ -233,12 +239,11 @@ const FacultyDashboard = () => {
         if (!user || !user.token) return;
 
         const fetchInitialData = async () => {
-            const headers = { 'Authorization': `Bearer ${user.token}` };
             console.log("Fetching initial data for faculty...");
 
             // Fetch Students (filtered by faculty's assigned sections)
             try {
-                const sRes = await fetch(`${API_BASE_URL}/faculty/my-students`, { headers });
+                const sRes = await authenticatedFetch(`${API_BASE_URL}/faculty/my-students`);
                 console.log("Students API status:", sRes.status);
                 if (sRes.ok) {
                     const data = await sRes.json();
@@ -253,7 +258,7 @@ const FacultyDashboard = () => {
 
             // Fetch Subjects (By Faculty Assignment)
             try {
-                const subRes = await fetch(`${API_BASE_URL}/faculty/my-subjects`, { headers });
+                const subRes = await authenticatedFetch(`${API_BASE_URL}/faculty/my-subjects`);
                 console.log("Subjects API status:", subRes.status);
                 if (subRes.ok) {
                     const data = await subRes.json();
@@ -271,7 +276,7 @@ const FacultyDashboard = () => {
 
             // Fetch Notifications
             try {
-                const notifRes = await fetch(`${API_BASE_URL}/notifications`, { headers });
+                const notifRes = await authenticatedFetch(`${API_BASE_URL}/notifications`);
                 if (notifRes.ok) {
                     const notifs = await notifRes.json();
                     setNotifications(notifs);
@@ -285,7 +290,7 @@ const FacultyDashboard = () => {
 
             // Fetch Published CIE Schedules (from HOD)
             try {
-                const schedRes = await fetch(`${API_BASE_URL}/cie/faculty/schedules`, { headers });
+                const schedRes = await authenticatedFetch(`${API_BASE_URL}/cie/faculty/schedules`);
                 if (schedRes.ok) {
                     const scheds = await schedRes.json();
                     setPublishedSchedules(scheds);
@@ -296,29 +301,15 @@ const FacultyDashboard = () => {
 
             // Fetch Marks for all subjects (for analytics and proctoring)
             try {
-                // We need to fetch marks for all subjects this faculty handles
-                // Since we don't have the subjects list fully ready here (async), 
-                // we might need to rely on the 'my-subjects' response or fetch all marks for faculty.
-                // Assuming there's an endpoint or we iterate.
-                // For now, let's try to fetch marks for the subjects we just fetched.
-
-                // Correction: We can't easily access 'data' from subRes here without restructuring.
-                // Let's blindly fetch marks for all subjects if we can, or just wait for user to select.
-                // But 'myStudents' needs marks.
-
                 // Workaround: Fetch all marks for faculty's subjects.
-                // If API supports it: GET /faculty/all-marks
-                // If not, we iterate.
-
-                // Let's assume we can fetch marks for each subject.
-                const subRes = await fetch(`${API_BASE_URL}/faculty/my-subjects`, { headers });
+                const subRes = await authenticatedFetch(`${API_BASE_URL}/faculty/my-subjects`);
                 if (subRes.ok) {
                     const subs = await subRes.json();
                     const marksMap = {};
 
                     await Promise.all(subs.map(async (sub) => {
                         try {
-                            const mRes = await fetch(`${API_BASE_URL}/marks/subject/${sub.id}`, { headers });
+                            const mRes = await authenticatedFetch(`${API_BASE_URL}/marks/subject/${sub.id}`);
                             if (mRes.ok) {
                                 const mData = await mRes.json();
                                 // Transform to { studentId: marks }
@@ -580,12 +571,7 @@ const FacultyDashboard = () => {
 
         // Fallback to API call if not found in state
         try {
-            const token = user?.token;
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-            const response = await fetch(`${API_BASE_URL}/cie/faculty/announcements/details?subjectId=${iaConfig.subjectId}&cieNumber=${iaConfig.cieNumber}`, {
-                headers
-            });
+            const response = await authenticatedFetch(`${API_BASE_URL}/cie/faculty/announcements/details?subjectId=${iaConfig.subjectId}&cieNumber=${iaConfig.cieNumber}`);
 
             if (response.ok) {
                 const result = await response.json();
@@ -626,21 +612,14 @@ const FacultyDashboard = () => {
         }
 
         try {
-            const token = user?.token;
-            const headers = {
-                'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            };
-
             const payload = {
                 subjectId: iaConfig.subjectId,
                 cieNumber: parseInt(iaConfig.cieNumber),
                 syllabusCoverage: iaConfig.syllabus
             };
 
-            const response = await fetch(`${API_BASE_URL}/cie/faculty/announcements/syllabus`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/cie/faculty/announcements/syllabus`, {
                 method: 'PUT',
-                headers,
                 body: JSON.stringify(payload)
             });
 
@@ -805,9 +784,7 @@ const FacultyDashboard = () => {
         setCieLockStatus({ cie1: false, cie2: false, cie3: false, cie4: false, cie5: false }); // All unlocked by default
 
         try {
-            const token = user?.token;
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-            const res = await fetch(`${API_BASE_URL}/marks/subject/${subject.id}`, { headers });
+            const res = await authenticatedFetch(`${API_BASE_URL}/marks/subject/${subject.id}`);
 
             if (res.ok) {
                 const data = await res.json();
@@ -1016,11 +993,8 @@ const FacultyDashboard = () => {
         if (payload.length === 0) return { success: true, message: 'No marks to save' };
 
         try {
-            const token = user?.token;
-            const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
-            const response = await fetch(`${API_BASE_URL}/marks/update/batch`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/marks/update/batch`, {
                 method: 'POST',
-                headers,
                 body: JSON.stringify(payload)
             });
 
@@ -1075,15 +1049,9 @@ const FacultyDashboard = () => {
         }
 
         try {
-            const token = user?.token;
-            const headers = {
-                'Authorization': `Bearer ${token}`
-            };
-
             // Call Submit Endpoint
-            const res = await fetch(`${API_BASE_URL}/marks/submit?subjectId=${selectedSubject.id}&cieType=${cieType}`, {
-                method: 'POST',
-                headers
+            const res = await authenticatedFetch(`${API_BASE_URL}/marks/submit?subjectId=${selectedSubject.id}&cieType=${cieType}`, {
+                method: 'POST'
             });
 
             if (res.ok) {
@@ -1340,13 +1308,8 @@ const FacultyDashboard = () => {
 
         setSaving(true);
         try {
-            const token = user?.token;
-            const response = await fetch(`${API_BASE_URL}/notifications/student`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/notifications/student`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
                 body: JSON.stringify({
                     studentRegNo: feedbackStudent.regNo,
                     message: feedbackMessage
@@ -3270,9 +3233,8 @@ const FacultyDashboard = () => {
                                             formData.append('subjectId', iaConfig.subjectId);
                                             formData.append('cieNumber', iaConfig.cieNumber || '1');
                                             try {
-                                                const res = await fetch(`${API_BASE_URL}/cie/faculty/upload-question`, {
+                                                const res = await authenticatedFetch(`${API_BASE_URL}/cie/faculty/upload-question`, {
                                                     method: 'POST',
-                                                    headers: { 'Authorization': `Bearer ${user.token}` },
                                                     body: formData
                                                 });
                                                 if (res.ok) {
@@ -3666,10 +3628,7 @@ const FacultyDashboard = () => {
         });
         if (!confirmed) return;
         try {
-            const token = user?.token;
-            if (!token) return;
-            const headers = { 'Authorization': `Bearer ${token}` };
-            const response = await fetch(`${API_BASE_URL}/notifications/clear`, { method: 'DELETE', headers });
+            const response = await authenticatedFetch(`${API_BASE_URL}/notifications/clear`, { method: 'DELETE' });
             if (response.ok) {
                 setNotifications([]);
                 setUnreadCount(0);
@@ -3685,10 +3644,7 @@ const FacultyDashboard = () => {
 
     const handleDeleteNotification = async (id) => {
         try {
-            const token = user?.token;
-            if (!token) return;
-            const headers = { 'Authorization': `Bearer ${token}` };
-            const response = await fetch(`${API_BASE_URL}/notifications/${id}`, { method: 'DELETE', headers });
+            const response = await authenticatedFetch(`${API_BASE_URL}/notifications/${id}`, { method: 'DELETE' });
             if (response.ok) {
                 setNotifications(prev => prev.filter(n => n.id !== id));
                 setUnreadCount(prev => Math.max(0, prev - 1));
@@ -3762,8 +3718,7 @@ const FacultyDashboard = () => {
     // === DEPARTMENT ASSIGNMENT HELPERS ===
     const fetchAllDepartments = async () => {
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}` };
-            const res = await fetch(`${API_BASE_URL}/faculty/all-departments`, { headers });
+            const res = await authenticatedFetch(`${API_BASE_URL}/faculty/all-departments`);
             if (res.ok) {
                 const data = await res.json();
                 setAllDepartments(data);
@@ -3773,8 +3728,7 @@ const FacultyDashboard = () => {
 
     const fetchDeptSubjects = async (dept) => {
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}` };
-            const res = await fetch(`${API_BASE_URL}/faculty/department-subjects?department=${encodeURIComponent(dept)}`, { headers });
+            const res = await authenticatedFetch(`${API_BASE_URL}/faculty/department-subjects?department=${encodeURIComponent(dept)}`);
             if (res.ok) {
                 const data = await res.json();
                 setDeptSubjects(data);
@@ -3784,8 +3738,7 @@ const FacultyDashboard = () => {
 
     const fetchAvailableSections = async (dept, sem) => {
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}` };
-            const res = await fetch(`${API_BASE_URL}/faculty/available-sections?department=${encodeURIComponent(dept)}&semester=${encodeURIComponent(sem)}`, { headers });
+            const res = await authenticatedFetch(`${API_BASE_URL}/faculty/available-sections?department=${encodeURIComponent(dept)}&semester=${encodeURIComponent(sem)}`);
             if (res.ok) {
                 const data = await res.json();
                 setAvailableSections(Array.isArray(data) && data.length > 0 ? data : []);
@@ -3800,8 +3753,7 @@ const FacultyDashboard = () => {
 
     const fetchMyAssignmentRequests = async () => {
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}` };
-            const res = await fetch(`${API_BASE_URL}/faculty/my-assignment-requests`, { headers });
+            const res = await authenticatedFetch(`${API_BASE_URL}/faculty/my-assignment-requests`);
             if (res.ok) {
                 const data = await res.json();
                 setMyAssignmentRequests(data);
@@ -3816,14 +3768,16 @@ const FacultyDashboard = () => {
         }
         setAssignLoading(true);
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' };
             const body = JSON.stringify({
                 targetDepartment: selectedTargetDept,
                 subjects: selectedAssignSubjects.join(', '),
                 sections: assignSections.join(', '),
                 semester: assignSemester
             });
-            const res = await fetch(`${API_BASE_URL}/faculty/assignment-request`, { method: 'POST', headers, body });
+            const res = await authenticatedFetch(`${API_BASE_URL}/faculty/assignment-request`, {
+                method: 'POST',
+                body
+            });
             const data = await res.json();
             if (res.ok) {
                 showToast(data.message || 'Request submitted!');
@@ -3862,8 +3816,7 @@ const FacultyDashboard = () => {
             });
             if (!confirmed) return;
             try {
-                const headers = { 'Authorization': `Bearer ${user.token}` };
-                const res = await fetch(`${API_BASE_URL}/faculty/assignment-request/${id}`, { method: 'DELETE', headers });
+                const res = await authenticatedFetch(`${API_BASE_URL}/faculty/assignment-request/${id}`, { method: 'DELETE' });
                 const data = await res.json();
                 if (res.ok) {
                     showToast(data.message || 'Request deleted');
@@ -3890,14 +3843,13 @@ const FacultyDashboard = () => {
             });
             // Fetch subjects for that department
             try {
-                const headers = { 'Authorization': `Bearer ${user.token}` };
-                const subRes = await fetch(`${API_BASE_URL}/faculty/department-subjects?department=${encodeURIComponent(req.targetDepartment)}`, { headers });
+                const subRes = await authenticatedFetch(`${API_BASE_URL}/faculty/department-subjects?department=${encodeURIComponent(req.targetDepartment)}`);
                 if (subRes.ok) {
                     const subData = await subRes.json();
                     setEditingAssignReq(prev => prev ? { ...prev, editSubjects: subData } : prev);
                 }
                 if (req.semester) {
-                    const secRes = await fetch(`${API_BASE_URL}/faculty/available-sections?department=${encodeURIComponent(req.targetDepartment)}&semester=${encodeURIComponent(req.semester)}`, { headers });
+                    const secRes = await authenticatedFetch(`${API_BASE_URL}/faculty/available-sections?department=${encodeURIComponent(req.targetDepartment)}&semester=${encodeURIComponent(req.semester)}`);
                     if (secRes.ok) {
                         const secData = await secRes.json();
                         setEditingAssignReq(prev => prev ? { ...prev, editSections: Array.isArray(secData) ? secData : [] } : prev);
@@ -3909,12 +3861,10 @@ const FacultyDashboard = () => {
         const handleSaveEditRequest = async () => {
             if (!editingAssignReq) return;
             try {
-                const headers = { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' };
-                const body = JSON.stringify({
-                    subjects: editingAssignReq.subjects.join(', '),
-                    sections: editingAssignReq.sections.join(', ')
+                const res = await authenticatedFetch(`${API_BASE_URL}/faculty/assignment-request/${editingAssignReq.id}`, {
+                    method: 'PUT',
+                    body
                 });
-                const res = await fetch(`${API_BASE_URL}/faculty/assignment-request/${editingAssignReq.id}`, { method: 'PUT', headers, body });
                 const data = await res.json();
                 if (res.ok) {
                     showToast(data.message || 'Request updated');

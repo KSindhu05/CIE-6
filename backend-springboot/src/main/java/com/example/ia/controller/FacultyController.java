@@ -65,6 +65,7 @@ public class FacultyController {
     }
 
     @GetMapping("/analytics")
+    @PreAuthorize("hasRole('FACULTY')")
     public FacultyClassAnalytics getAnalytics() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return facultyService.getAnalytics(username);

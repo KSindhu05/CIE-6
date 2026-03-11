@@ -247,4 +247,24 @@ public class FacultyService {
         return new FacultyClassAnalytics(evaluated, pending, avg, low, top, allowedStudents.size(), excellentList,
                 averageList, lowList);
     }
+
+    public boolean isFacultyAssignedToSubjectAndStudent(String username, Long subjectId, Long studentId) {
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null)
+            return false;
+
+        // 1. Check if faculty teaches the subject
+        List<SubjectWithRoleDto> assignedSubjects = getSubjectsForFaculty(username);
+        boolean teachesSubject = assignedSubjects.stream().anyMatch(s -> s.getId().equals(subjectId));
+        if (!teachesSubject)
+            return false;
+
+        // 2. If studentId is provided, check if student is in an allowed section for this faculty
+        if (studentId != null) {
+            List<Student> allowedStudents = getStudentsForFaculty(username);
+            return allowedStudents.stream().anyMatch(s -> s.getId().equals(studentId));
+        }
+
+        return true;
+    }
 }

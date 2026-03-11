@@ -5,6 +5,7 @@ import styles from '../../../pages/PrincipalDashboard.module.css';
 import API_BASE_URL from '../../../config/api';
 
 import { useAuth } from '../../../context/AuthContext';
+import authenticatedFetch from '../../../utils/authFetch';
 import { ToastNotification, SimpleModal } from './Shared';
 
 const DepartmentCard = ({ dept, onSelect }) => {
@@ -16,10 +17,7 @@ const DepartmentCard = ({ dept, onSelect }) => {
         const fetchStats = async () => {
             try {
                 // Fetch real stats for this specific department
-                const token = user?.token;
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-                const response = await fetch(`${API_BASE_URL}/analytics/department/${dept.id}/stats`, { headers });
+                const response = await authenticatedFetch(`${API_BASE_URL}/analytics/department/${dept.id}/stats`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -134,9 +132,7 @@ const DepartmentDetails = ({ dept, onBack, allFaculty }) => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const token = user?.token;
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                const response = await fetch(`${API_BASE_URL}/analytics/department/${dept.id}/stats`, { headers });
+                const response = await authenticatedFetch(`${API_BASE_URL}/analytics/department/${dept.id}/stats`);
                 if (response.ok) {
                     const data = await response.json();
                     setStats(data);
@@ -154,9 +150,7 @@ const DepartmentDetails = ({ dept, onBack, allFaculty }) => {
         setShowStudentModal(true);
         setLoadingStudents(true);
         try {
-            const token = user?.token;
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-            const response = await fetch(`${API_BASE_URL}/principal/students/${dept.id}`, { headers });
+            const response = await authenticatedFetch(`${API_BASE_URL}/principal/students/${dept.id}`);
             if (response.ok) {
                 const data = await response.json();
                 setStudentList(data);

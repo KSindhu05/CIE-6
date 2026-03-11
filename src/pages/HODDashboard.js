@@ -1,5 +1,6 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import authenticatedFetch from '../utils/authFetch';
 import API_BASE_URL from '../config/api';
 import DashboardLayout from '../components/DashboardLayout';
 import { useDialog } from '../components/GlobalDialogProvider';
@@ -47,7 +48,13 @@ const parseSubjects = (subjects) => {
 const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
     const { user } = useAuth();
     const { showConfirm, showPrompt } = useDialog();
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState(() => {
+        return sessionStorage.getItem('hodActiveTab') || 'overview';
+    });
+
+    useEffect(() => {
+        sessionStorage.setItem('hodActiveTab', activeTab);
+    }, [activeTab]);
 
     // Toast state & helper
     const [hodToast, setHodToast] = useState({ show: false, message: '', type: 'success' });
@@ -155,6 +162,12 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
     const [showEditStudentModal, setShowEditStudentModal] = useState(false);
     const [editingStudent, setEditingStudent] = useState(null);
 
+    // Student Bulk Upload State
+    const [showStudentUploadModal, setShowStudentUploadModal] = useState(false);
+    const [studentCsvData, setStudentCsvData] = useState([]);
+    const [studentCsvErrors, setStudentCsvErrors] = useState([]);
+    const [studentCsvFile, setStudentCsvFile] = useState(null);
+
     // Reset Password State
     const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
     const [resetTarget, setResetTarget] = useState(null); // { username, fullName, role }
@@ -196,19 +209,12 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         if (!messageText.trim() || !messagingFaculty) return;
 
         try {
-            const token = user?.token;
-            const headers = {
-                'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            };
-
-            const response = await fetch(`${API_BASE_URL}/notifications/direct`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/notifications/direct`, {
                 method: 'POST',
-                headers,
                 body: JSON.stringify({
                     userId: messagingFaculty.id,
                     message: messageText,
-                    type: 'INFO', // Changed from MESSAGE to INFO to match backend ENUM
+                    type: 'INFO',
                     category: 'HOD'
                 })
             });
@@ -237,12 +243,6 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         }
 
         try {
-            const token = user?.token;
-            const headers = {
-                'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            };
-
             const sendBroadcast = async (role) => {
                 const payload = {
                     targetRole: role, // Backend expects 'targetRole' not 'recipientType'
@@ -251,9 +251,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                     department: selectedDept
                 };
 
-                return fetch(`${API_BASE_URL}/notifications/broadcast`, {
+                return authenticatedFetch(`${API_BASE_URL}/notifications/broadcast`, {
                     method: 'POST',
-                    headers,
                     body: JSON.stringify(payload)
                 });
             };
@@ -342,16 +341,13 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         }
 
         try {
-            const token = user?.token;
-            const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
             const method = editingFaculty ? 'PUT' : 'POST';
             const url = editingFaculty
                 ? `${API_BASE_URL}/hod/faculty/${editingFaculty.id}`
                 : `${API_BASE_URL}/hod/faculty`;
 
-            const response = await fetch(url, {
+            const response = await authenticatedFetch(url, {
                 method,
-                headers,
                 body: JSON.stringify(data)
             });
 
@@ -398,11 +394,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         if (!confirmed) return;
 
         try {
-            const token = user?.token;
-            const headers = { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
-            const response = await fetch(`${API_BASE_URL}/hod/faculty/${facId}?department=${encodeURIComponent(selectedDept)}`, {
-                method: 'DELETE',
-                headers
+            const response = await authenticatedFetch(`${API_BASE_URL}/hod/faculty/${facId}?department=${encodeURIComponent(selectedDept)}`, {
+                method: 'DELETE'
             });
 
             if (response.ok) {
@@ -421,10 +414,9 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
     };
 
     const fetchFaculty = async () => {
-        if (!isMyDept || !selectedDept || !user?.token) return;
+        if (!isMyDept || !selectedDept) return;
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}` };
-            const response = await fetch(`${API_BASE_URL}/hod/faculty?department=${selectedDept}`, { headers });
+            const response = await authenticatedFetch(`${API_BASE_URL}/hod/faculty?department=${selectedDept}`);
             if (response.ok) {
                 const data = await response.json();
                 setFacultyList(data);
@@ -444,8 +436,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         if (isMyDept && selectedDept && user?.token) {
             const fetchOverview = async () => {
                 try {
-                    const headers = { 'Authorization': `Bearer ${user.token}` };
-                    const response = await fetch(`${API_BASE_URL}/hod/overview?department=${selectedDept}`, { headers });
+                    const response = await authenticatedFetch(`${API_BASE_URL}/hod/overview?department=${selectedDept}`);
                     if (response.ok) {
                         const data = await response.json();
                         if (data.alerts) setDepartmentAlerts(data.alerts);
@@ -480,13 +471,11 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         if ((activeTab === 'monitoring' || activeTab === 'faculty' || activeTab === 'performance') && isMyDept && subjects.length > 0 && deptStudents.length > 0) {
             const fetchSubjectMarks = async () => {
                 try {
-                    const token = user?.token;
-                    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
                     const marksDataBySubject = {};
 
                     for (const subject of subjects) {
                         try {
-                            const response = await fetch(`${API_BASE_URL}/marks/subject/${subject.id}`, { headers });
+                            const response = await authenticatedFetch(`${API_BASE_URL}/marks/subject/${subject.id}`);
                             if (response.ok) {
                                 const marksData = await response.json();
                                 marksDataBySubject[subject.name] = marksData;
@@ -508,10 +497,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
     useEffect(() => {
         const fetchNotifications = async () => {
             try {
-                const token = user?.token;
-                if (!token) return;
-                const headers = { 'Authorization': `Bearer ${token}` };
-                const response = await fetch(`${API_BASE_URL}/cie/hod/notifications`, { headers });
+                const response = await authenticatedFetch(`${API_BASE_URL}/cie/hod/notifications`);
                 if (response.ok) {
                     const data = await response.json();
                     setNotifications(data);
@@ -534,10 +520,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         });
         if (!confirmed) return;
         try {
-            const token = user?.token;
-            if (!token) return;
-            const headers = { 'Authorization': `Bearer ${token}` };
-            const response = await fetch(`${API_BASE_URL}/notifications/clear`, { method: 'DELETE', headers });
+            const response = await authenticatedFetch(`${API_BASE_URL}/notifications/clear`, { method: 'DELETE' });
             if (response.ok) {
                 setNotifications([]);
                 setUnreadCount(0);
@@ -553,10 +536,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
 
     const handleDeleteNotification = async (id) => {
         try {
-            const token = user?.token;
-            if (!token) return;
-            const headers = { 'Authorization': `Bearer ${token}` };
-            const response = await fetch(`${API_BASE_URL}/notifications/${id}`, { method: 'DELETE', headers });
+            const response = await authenticatedFetch(`${API_BASE_URL}/notifications/${id}`, { method: 'DELETE' });
             if (response.ok) {
                 setNotifications(prev => prev.filter(n => n.id !== id));
                 // Recalculate unread count if needed
@@ -569,12 +549,11 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
 
     // Fetch pending approvals globally to display badge
     useEffect(() => {
-        if (isMyDept && user?.token && selectedDept) {
+        if (isMyDept && selectedDept) {
             const fetchPendingApprovals = async () => {
                 setApprovalLoading(true);
                 try {
-                    const headers = { 'Authorization': `Bearer ${user.token}` };
-                    const response = await fetch(`${API_BASE_URL}/marks/pending?department=${selectedDept}`, { headers });
+                    const response = await authenticatedFetch(`${API_BASE_URL}/marks/pending?department=${selectedDept}`);
                     if (response.ok) {
                         const rawMarks = await response.json();
                         // Group raw CieMark records by subject + cieType
@@ -619,10 +598,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
     useEffect(() => {
         const fetchPerformanceData = async () => {
             try {
-                const token = user?.token;
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
                 // Combined fetch from the stable overview endpoint
-                const response = await fetch(`${API_BASE_URL}/hod/overview?department=${selectedDept}`, { headers });
+                const response = await authenticatedFetch(`${API_BASE_URL}/hod/overview?department=${selectedDept}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -711,9 +688,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
 
         const fetchStudents = async () => {
             try {
-                const token = user?.token;
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                const response = await fetch(`${API_BASE_URL}/student/all?department=${selectedDept}`, { headers });
+                const response = await authenticatedFetch(`${API_BASE_URL}/student/all?department=${selectedDept}`);
                 if (response.ok) {
                     const data = await response.json();
 
@@ -749,9 +724,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         if (selectedSubject && selectedSubject.id) {
             const fetchMarks = async () => {
                 try {
-                    const token = user?.token;
-                    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                    const response = await fetch(`${API_BASE_URL}/marks/subject/${selectedSubject.id}`, { headers });
+                    const response = await authenticatedFetch(`${API_BASE_URL}/marks/subject/${selectedSubject.id}`);
 
                     if (response.ok) {
                         const marksData = await response.json();
@@ -783,9 +756,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         if (isMyDept && selectedDept) {
             const fetchAnnouncements = async () => {
                 try {
-                    const token = user?.token;
-                    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                    const response = await fetch(`${API_BASE_URL}/cie/hod/announcements`, { headers });
+                    const response = await authenticatedFetch(`${API_BASE_URL}/cie/hod/announcements`);
                     if (response.ok) {
                         const data = await response.json();
                         // Deduplicate by id to prevent duplicate schedule entries
@@ -812,23 +783,17 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
 
 
         try {
-            const token = user?.token;
-            const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
-            const baseUrl = API_BASE.replace('/marks', '/hod');
-
             let response;
             if (editingScheduleId) {
                 // UPDATE Existing Schedule
-                response = await fetch(`${API_BASE_URL}/cie/announcements/${editingScheduleId}`, {
+                response = await authenticatedFetch(`${API_BASE_URL}/cie/announcements/${editingScheduleId}`, {
                     method: 'PUT',
-                    headers,
                     body: JSON.stringify(data)
                 });
             } else {
                 // CREATE New Schedule
-                response = await fetch(`${API_BASE_URL}/cie/announcements?subjectId=${data.subjectId}`, {
+                response = await authenticatedFetch(`${API_BASE_URL}/cie/announcements?subjectId=${data.subjectId}`, {
                     method: 'POST',
-                    headers,
                     body: JSON.stringify(data)
                 });
             }
@@ -880,11 +845,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         });
         if (!confirmed) return;
         try {
-            const token = user?.token;
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-            const response = await fetch(`${API_BASE_URL}/cie/announcements/${id}`, {
-                method: 'DELETE',
-                headers
+            const response = await authenticatedFetch(`${API_BASE_URL}/cie/announcements/${id}`, {
+                method: 'DELETE'
             });
 
             if (response.ok) {
@@ -908,10 +870,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         if (isMyDept) {
             const fetchSubjects = async () => {
                 try {
-                    const token = user?.token;
-                    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                    // Removed unused localhost URL
-                    const response = await fetch(`${API_BASE_URL}/subjects/department/${selectedDept}`, { headers });
+                    const response = await authenticatedFetch(`${API_BASE_URL}/subjects/department/${selectedDept}`);
                     if (response.ok) {
                         const data = await response.json();
                         setSubjects(data);
@@ -994,11 +953,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         }
 
         try {
-            const token = user?.token;
-            const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
-            const response = await fetch(`${API_BASE_URL}/marks/update/batch`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/marks/update/batch`, {
                 method: 'POST',
-                headers,
                 body: JSON.stringify(payload)
             });
 
@@ -1023,11 +979,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         });
         if (!confirmed) return;
         try {
-            const token = user?.token;
-            const headers = { 'Authorization': `Bearer ${token}` };
-            const response = await fetch(`${API_BASE_URL}/marks/approve?subjectId=${subjectId}&iaType=${iaType}`, {
-                method: 'POST',
-                headers
+            const response = await authenticatedFetch(`${API_BASE_URL}/marks/approve?subjectId=${subjectId}&iaType=${iaType}`, {
+                method: 'POST'
             });
             if (response.ok) {
                 showToast('Marks approved successfully!');
@@ -1051,11 +1004,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         });
         if (!confirmed) return;
         try {
-            const token = user?.token;
-            const headers = { 'Authorization': `Bearer ${token}` };
-            const response = await fetch(`${API_BASE_URL}/marks/reject?subjectId=${subjectId}&iaType=${iaType}`, {
-                method: 'POST',
-                headers
+            const response = await authenticatedFetch(`${API_BASE_URL}/marks/reject?subjectId=${subjectId}&iaType=${iaType}`, {
+                method: 'POST'
             });
             if (response.ok) {
                 showToast('Marks rejected. Faculty has been notified.');
@@ -1090,15 +1040,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         if (!confirmed) return;
 
         try {
-            const token = user?.token;
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            const response = await fetch(`${API_BASE_URL}/marks/unlock`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/marks/unlock`, {
                 method: 'POST',
-                headers,
                 body: JSON.stringify({
                     subjectId,
                     iaType,
@@ -1143,9 +1086,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
             setStudentMarksProfile([]);
             setShowProfileModal(true);
 
-            const token = user?.token;
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-            const response = await fetch(`${API_BASE_URL}/marks/student/${student.id}`, { headers });
+            const response = await authenticatedFetch(`${API_BASE_URL}/marks/student/${student.id}`);
 
             if (response.ok) {
                 const data = await response.json();
@@ -1162,10 +1103,9 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         const data = { ...studentForm, department: selectedDept };
 
         try {
-            const token = user?.token;
-            const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
-            const response = await fetch(`${API_BASE_URL}/hod/students`, {
-                method: 'POST', headers, body: JSON.stringify(data)
+            const response = await authenticatedFetch(`${API_BASE_URL}/hod/students`, {
+                method: 'POST',
+                body: JSON.stringify(data)
             });
 
             if (response.ok) {
@@ -1192,9 +1132,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         });
         if (!confirmed) return;
         try {
-            const token = user?.token;
-            const headers = { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
-            const response = await fetch(`${API_BASE_URL}/hod/students/${regNo}`, { method: 'DELETE', headers });
+            const response = await authenticatedFetch(`${API_BASE_URL}/hod/students/${regNo}`, { method: 'DELETE' });
             if (response.ok) {
                 showToast('Student deleted successfully');
                 window.location.reload();
@@ -1225,11 +1163,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
     const handleUpdateStudent = async (e) => {
         if (e) e.preventDefault();
         try {
-            const token = user?.token;
-            const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
-            const response = await fetch(`${API_BASE_URL}/hod/students/${editingStudent.regNo}`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/hod/students/${editingStudent.regNo}`, {
                 method: 'PUT',
-                headers,
                 body: JSON.stringify(studentForm)
             });
 
@@ -1261,10 +1196,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
             return;
         }
         try {
-            const token = user?.token;
-            const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
-            const response = await fetch(`${API_BASE_URL}/hod/credentials/reset`, {
-                method: 'PUT', headers,
+            const response = await authenticatedFetch(`${API_BASE_URL}/hod/credentials/reset`, {
+                method: 'PUT',
                 body: JSON.stringify({ username: resetTarget.username, newPassword })
             });
             if (response.ok) {
@@ -1280,48 +1213,105 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         }
     };
 
-    const handleFileUpload = async (e) => {
+    const downloadStudentTemplate = () => {
+        const headers = ['RegNo', 'Name', 'Semester', 'Section', 'Email', 'Phone', 'ParentPhone', 'Password'];
+        const csvContent = headers.join(',') + '\n';
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Student_Upload_Template_${selectedDept}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showToast('Template downloaded!', 'success');
+    };
+
+    const handleStudentCsvFileChange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        setStudentCsvFile(file);
 
-        const confirmed = await showConfirm({
-            title: 'Upload Students',
-            message: `Are you sure you want to upload "${file.name}"? This will add students to the ${selectedDept} department.`,
-            variant: 'info',
-            confirmText: 'Upload'
-        });
-        if (!confirmed) {
-            e.target.value = null;
-            return;
-        }
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const text = evt.target.result
+                .replace(/\uFEFF/g, '')
+                .replace(/[\u200B-\u200D\u2060]/g, '')
+                .replace(/\r\n/g, '\n')
+                .replace(/\r/g, '\n');
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            if (lines.length < 1) {
+                setStudentCsvErrors([{ row: 0, message: 'CSV file is empty' }]);
+                setStudentCsvData([]);
+                return;
+            }
+
+            const firstCol = lines[0].split(',')[0].replace(/[^\w]/g, '').trim();
+            const hasHeader = firstCol.length > 0 && !/^\d/.test(firstCol);
+            const dataStartIndex = hasHeader ? 1 : 0;
+
+            const parsed = [];
+            const errors = [];
+
+            for (let i = dataStartIndex; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                if (values.length < 2) continue;
+
+                const [regNo, name, semester, section, email, phone, parentPhone, password] = values;
+                const rowNum = i + 1;
+                const rowErrors = [];
+
+                if (!regNo) rowErrors.push('Missing RegNo');
+                if (!name) rowErrors.push('Missing Name');
+
+                if (rowErrors.length > 0) {
+                    errors.push({ row: rowNum, message: rowErrors.join(', ') });
+                }
+
+                parsed.push({
+                    regNo,
+                    name,
+                    semester: semester || '1',
+                    section: section || 'A',
+                    email: email || '',
+                    phone: phone || '',
+                    parentPhone: parentPhone || '',
+                    password: password || regNo,
+                    isValid: rowErrors.length === 0
+                });
+            }
+
+            setStudentCsvData(parsed);
+            setStudentCsvErrors(errors);
+        };
+        reader.readAsText(file);
+    };
+
+    const handleStudentBulkUpload = async () => {
+        if (!studentCsvFile) return;
 
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', studentCsvFile);
         formData.append('department', selectedDept);
 
         try {
-            const token = user?.token;
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-            // Show loading state if desired (optional)
-            // setClientLoading(true); 
-
-            const response = await fetch(`${API_BASE_URL}/hod/students/upload`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/hod/students/upload`, {
                 method: 'POST',
-                headers,
                 body: formData
             });
 
             const result = await response.json();
 
             if (response.ok) {
-                let msg = result.message;
-                if (result.added !== undefined) msg += ` \u2705 Added: ${result.added}`;
-                if (result.skipped !== undefined) msg += ` \u26a0\ufe0f Skipped: ${result.skipped}`;
+                let msg = `Upload Success: ${result.added} added, ${result.skipped} skipped.`;
                 if (result.errors && result.errors.length > 0) {
-                    msg += ` \u274c Errors: ${result.errors.length}`;
+                    msg += ` (${result.errors.length} errors)`;
                 }
                 showToast(msg);
+                setShowStudentUploadModal(false);
+                setStudentCsvData([]);
+                setStudentCsvFile(null);
                 window.location.reload();
             } else {
                 showToast(`Upload Failed: ${result.message}`, 'error');
@@ -1329,8 +1319,6 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         } catch (error) {
             console.error(error);
             showToast('Error uploading file', 'error');
-        } finally {
-            e.target.value = null;
         }
     };
 
@@ -1371,9 +1359,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         };
 
         try {
-            const response = await fetch(`${API_BASE_URL}/hod/students/bulk`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/hod/students/bulk`, {
                 method: 'DELETE',
-                headers,
                 body: JSON.stringify(selectedStudents)
             });
 
@@ -1452,22 +1439,18 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                         <button className={styles.primaryBtn} onClick={() => setShowAddStudentModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <UserPlus size={16} /> Add New Student
                         </button>
-                        <div>
-                            <input
-                                type="file"
-                                id="csvUpload"
-                                accept=".csv"
-                                style={{ display: 'none' }}
-                                onChange={handleFileUpload}
-                            />
-                            <button
-                                className={styles.secondaryBtn}
-                                onClick={() => document.getElementById('csvUpload').click()}
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5' }}
-                            >
-                                <Upload size={16} /> Bulk Upload CSV
-                            </button>
-                        </div>
+                        <button
+                            className={styles.secondaryBtn}
+                            onClick={() => {
+                                setShowStudentUploadModal(true);
+                                setStudentCsvData([]);
+                                setStudentCsvErrors([]);
+                                setStudentCsvFile(null);
+                            }}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5' }}
+                        >
+                            <Upload size={16} /> Bulk Upload
+                        </button>
                     </div>
                 </div>
 
@@ -1676,6 +1659,124 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                                 <Key size={14} /> Reset Password
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderStudentUploadModal = () => {
+        if (!showStudentUploadModal) return null;
+
+        return (
+            <div className={styles.modalOverlay} onClick={() => setShowStudentUploadModal(false)}>
+                <div className={styles.modalContent} style={{ maxWidth: '700px' }} onClick={e => e.stopPropagation()}>
+                    <div className={styles.modalHeader}>
+                        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Upload size={20} /> Bulk Student Upload
+                        </h3>
+                        <button className={styles.closeBtn} onClick={() => setShowStudentUploadModal(false)}>
+                            <X size={24} />
+                        </button>
+                    </div>
+                    <div className={styles.modalBody}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
+                            <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Upload student data for <strong>{selectedDept}</strong></span>
+                            <button className={styles.csvTemplateBtn} onClick={downloadStudentTemplate}>
+                                <Download size={14} /> Download Template
+                            </button>
+                        </div>
+
+                        {!studentCsvFile ? (
+                            <div
+                                className={styles.uploadArea}
+                                onClick={() => document.getElementById('studentCsvInput').click()}
+                            >
+                                <Upload size={48} style={{ color: '#2563eb', marginBottom: '1rem', opacity: 0.5 }} />
+                                <span className={styles.uploadText}>Click to select CSV File</span>
+                                <span className={styles.uploadSubtext}>Maximum file size: 5MB</span>
+                                <input
+                                    type="file"
+                                    id="studentCsvInput"
+                                    accept=".csv"
+                                    onChange={handleStudentCsvFileChange}
+                                    style={{ display: 'none' }}
+                                />
+                            </div>
+                        ) : (
+                            <div className={styles.csvPreviewContainer}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <FileText size={16} />
+                                        <span style={{ fontWeight: 600 }}>{studentCsvFile.name}</span>
+                                        <span style={{ fontSize: '0.8rem', color: '#64748b' }}>({studentCsvData.length} records)</span>
+                                    </div>
+                                    <button className={styles.secondaryBtn} onClick={() => setStudentCsvFile(null)} style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}>Change File</button>
+                                </div>
+
+                                {studentCsvErrors.length > 0 && (
+                                    <div style={{ background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', padding: '0.75rem', marginBottom: '1rem' }}>
+                                        <div style={{ color: '#dc2626', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <AlertTriangle size={14} /> Errors found:
+                                        </div>
+                                        <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8rem', color: '#991b1b' }}>
+                                            {studentCsvErrors.slice(0, 3).map((err, i) => (
+                                                <li key={i}>{err.message}</li>
+                                            ))}
+                                            {studentCsvErrors.length > 3 && <li>And {studentCsvErrors.length - 3} more...</li>}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                <div className={styles.csvPreviewWrapper}>
+                                    <table className={styles.csvPreviewTable}>
+                                        <thead>
+                                            <tr>
+                                                <th>RegNo</th>
+                                                <th>Name</th>
+                                                <th>Sem</th>
+                                                <th>Sec</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {studentCsvData.slice(0, 50).map((row, i) => (
+                                                <tr key={i} className={row.isValid ? styles.csvValidRow : styles.csvErrorRow}>
+                                                    <td>{row.regNo}</td>
+                                                    <td>{row.name}</td>
+                                                    <td>{row.semester}</td>
+                                                    <td>{row.section}</td>
+                                                    <td>
+                                                        {row.isValid ? (
+                                                            <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> Ready</span>
+                                                        ) : (
+                                                            <span style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> Invalid</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {studentCsvData.length > 50 && (
+                                        <div style={{ textAlign: 'center', padding: '0.5rem', color: '#64748b', fontSize: '0.8rem' }}>
+                                            + {studentCsvData.length - 50} more rows
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+                                    <button className={styles.secondaryBtn} onClick={() => setShowStudentUploadModal(false)}>Cancel</button>
+                                    <button
+                                        className={styles.primaryBtn}
+                                        onClick={handleStudentBulkUpload}
+                                        disabled={studentCsvErrors.length > 0}
+                                        style={{ background: '#2563eb', color: 'white', opacity: studentCsvErrors.length > 0 ? 0.5 : 1 }}
+                                    >
+                                        <Upload size={16} /> Upload Students
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -2325,11 +2426,9 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                                             if (uniqueStudentIds.length === 0) { showToast('No student IDs found', 'error'); return; }
                                             let sent = 0;
                                             try {
-                                                const token = user?.token;
-                                                const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
                                                 for (const sid of uniqueStudentIds) {
-                                                    const res = await fetch(`${API_BASE_URL}/notifications/direct`, {
-                                                        method: 'POST', headers,
+                                                    const res = await authenticatedFetch(`${API_BASE_URL}/notifications/direct`, {
+                                                        method: 'POST',
                                                         body: JSON.stringify({ userId: sid, message: msg, type: 'INFO', category: 'HOD' })
                                                     });
                                                     if (res.ok) sent++;
@@ -2526,8 +2625,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                                     const url = editingSubject ? `${API_BASE_URL}/subjects/${editingSubject.id}` : `${API_BASE_URL}/subjects`;
                                     const method = editingSubject ? 'PUT' : 'POST';
 
-                                    const res = await fetch(url, {
-                                        method, headers,
+                                    const res = await authenticatedFetch(url, {
+                                        method,
                                         body: JSON.stringify(payload)
                                     });
 
@@ -2539,7 +2638,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                                         }
                                         setEditingSubject(null);
                                         // Refresh subjects list
-                                        const subRes = await fetch(`${API_BASE_URL}/subjects/department/${selectedDept}`, { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
+                                        const subRes = await authenticatedFetch(`${API_BASE_URL}/subjects/department/${selectedDept}`);
                                         if (subRes.ok) setSubjects(await subRes.json());
                                     } else {
                                         const err = await res.json();
@@ -2577,8 +2676,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                                                     });
                                                     if (!confirmed) return;
                                                     try {
-                                                        const token = user?.token;
-                                                        const res = await fetch(`${API_BASE_URL}/subjects/${sub.id}`, { method: 'DELETE', headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
+                                                        const res = await authenticatedFetch(`${API_BASE_URL}/subjects/${sub.id}`, { method: 'DELETE' });
                                                         if (res.ok) {
                                                             setSubjects(prev => prev.filter(s => s.id !== sub.id));
                                                             if (editingSubject?.id === sub.id) setEditingSubject(null);
@@ -2830,11 +2928,10 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
 
     // ========== FACULTY ASSIGNMENT REQUESTS ==========
     const fetchPendingAssignments = async () => {
-        if (!selectedDept || !user?.token) return;
+        if (!selectedDept) return;
         setAssignReqLoading(true);
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}` };
-            const res = await fetch(`${API_BASE_URL}/hod/assignment-requests?department=${encodeURIComponent(selectedDept)}&status=ALL`, { headers });
+            const res = await authenticatedFetch(`${API_BASE_URL}/hod/assignment-requests?department=${encodeURIComponent(selectedDept)}&status=ALL`);
             if (res.ok) {
                 const data = await res.json();
                 setPendingAssignments(data);
@@ -2858,8 +2955,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         });
         if (!confirmed) return;
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' };
-            const res = await fetch(`${API_BASE_URL}/hod/assignment-requests/${requestId}/approve`, { method: 'PUT', headers });
+            const res = await authenticatedFetch(`${API_BASE_URL}/hod/assignment-requests/${requestId}/approve`, { method: 'PUT' });
             let data;
             const contentType = res.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
@@ -2871,7 +2967,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
             if (res.ok) {
                 showToast(data.message || 'Request approved!');
                 fetchPendingAssignments();
-                const facRes = await fetch(`${API_BASE_URL}/hod/faculty?department=${selectedDept}`, { headers });
+                const facRes = await authenticatedFetch(`${API_BASE_URL}/hod/faculty?department=${selectedDept}`);
                 if (facRes.ok) setFacultyList(await facRes.json());
             } else {
                 console.error('Approve request failed:', res.status, data);
@@ -2889,8 +2985,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         });
         if (!confirmed) return;
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' };
-            const res = await fetch(`${API_BASE_URL}/hod/assignment-requests/${requestId}/reject`, { method: 'PUT', headers });
+            const res = await authenticatedFetch(`${API_BASE_URL}/hod/assignment-requests/${requestId}/reject`, { method: 'PUT' });
             let data;
             const contentType = res.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
@@ -2918,10 +3013,8 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
         });
         if (!confirmed) return;
         try {
-            const headers = { 'Authorization': `Bearer ${user.token}` };
-            const res = await fetch(`${API_BASE_URL}/hod/assignment-requests/clear?department=${encodeURIComponent(selectedDept)}`, {
-                method: 'DELETE',
-                headers
+            const res = await authenticatedFetch(`${API_BASE_URL}/hod/assignment-requests/clear?department=${encodeURIComponent(selectedDept)}`, {
+                method: 'DELETE'
             });
             const data = await res.json();
             if (res.ok) {
@@ -3116,6 +3209,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
                 {renderStudentProfileModal()}
                 {renderResetPasswordModal()}
                 {renderEditStudentModal()}
+                {renderStudentUploadModal()}
                 {hodToast.show && (
                     <div style={{
                         position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 10001,
@@ -3149,6 +3243,7 @@ const HODDashboard = ({ isSpectator = false, spectatorDept = null }) => {
             {renderStudentProfileModal()}
             {renderResetPasswordModal()}
             {renderEditStudentModal()}
+            {renderStudentUploadModal()}
             {hodToast.show && (
                 <div style={{
                     position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 10001,

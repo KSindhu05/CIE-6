@@ -2,6 +2,7 @@ import React, { useState, useMemo, memo } from 'react';
 import { X, Search, Filter, Download, AlertTriangle, CheckCircle, Clock, ArrowLeft } from 'lucide-react';
 import styles from '../../../pages/PrincipalDashboard.module.css';
 import { useAuth } from '../../../context/AuthContext';
+import authenticatedFetch from '../../../utils/authFetch';
 import API_BASE_URL from '../../../config/api';
 
 const StudentProfileModal = ({ selectedStudentProfile, setSelectedStudentProfile, selectedDept }) => {
@@ -120,10 +121,8 @@ export const DirectorySection = memo(({ departments = [], selectedDept, deptStud
             setLocalLoading(true);
             try {
                 // Determine API endpoint
-                const token = user?.token;
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
                 const endpoint = `${API_BASE_URL}/student/all?department=${selectedDept.id}`;
-                const response = await fetch(endpoint, { headers });
+                const response = await authenticatedFetch(endpoint);
 
                 if (response.ok) {
                     const data = await response.json();

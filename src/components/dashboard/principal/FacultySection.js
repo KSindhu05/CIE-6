@@ -4,6 +4,7 @@ import styles from '../../../pages/PrincipalDashboard.module.css';
 import API_BASE_URL from '../../../config/api';
 
 import { useAuth } from '../../../context/AuthContext';
+import authenticatedFetch from '../../../utils/authFetch';
 
 const FacultySection = () => {
     const { user } = useAuth();
@@ -15,25 +16,9 @@ const FacultySection = () => {
     useEffect(() => {
         const fetchFaculty = async () => {
             try {
-                const token = user?.token;
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-                // Fetch all faculty. If a dedicated 'all' endpoint exists for principal, use it.
-                // Otherwise, we might need to fetch by department or use a general endpoint.
-                // Assuming /admin/faculty or /faculty/all exists.
-                // If not, we can assume the HOD endpoint with no dept filter returns all, or we make multiple calls.
-                // Let's try a hypothetical /faculty/all for now, or fallback to the one used in HOD ('/hod/faculty?department=CS').
-
-                // Strategy: Fetch from all departments if no global endpoint
-                // But for now, let's try a broader fetch or just fetch heavily used ones.
-                // Using /hod/faculty without query param might work if backend supports it, else we iterate.
-
-                const departments = ['CS', 'EC', 'ME', 'CV'];
-                let allFaculty = [];
-
                 for (const dept of departments) {
                     try {
-                        const res = await fetch(`${API_BASE_URL}/hod/faculty?department=${dept}`, { headers });
+                        const res = await authenticatedFetch(`${API_BASE_URL}/hod/faculty?department=${dept}`);
                         if (res.ok) {
                             const data = await res.json();
                             // Add department field if missing

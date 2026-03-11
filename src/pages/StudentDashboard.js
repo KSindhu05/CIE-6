@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import DashboardLayout from '../components/DashboardLayout';
 import RightSidebar from '../components/RightSidebar'; // Import RightSidebar
 import API_BASE_URL from '../config/api';
@@ -8,9 +10,16 @@ import { fetchSemesterStatus } from '../services/api';
 import styles from './StudentDashboard.module.css';
 import AcademicSummary from '../components/dashboard/student/AcademicSummary';
 import AcademicInsights from '../components/dashboard/student/AcademicInsights';
+import authenticatedFetch from '../utils/authFetch';
 
 const StudentDashboard = () => {
-    const [activeSection, setActiveSection] = useState('Overview');
+    const [activeSection, setActiveSection] = useState(() => {
+        return sessionStorage.getItem('studentActiveSection') || 'Overview';
+    });
+
+    React.useEffect(() => {
+        sessionStorage.setItem('studentActiveSection', activeSection);
+    }, [activeSection]);
     const [toast, setToast] = useState({ show: false, message: '' });
 
     const { user } = useAuth(); // Get auth context
@@ -41,9 +50,7 @@ const StudentDashboard = () => {
         const fetchMarks = async () => {
             try {
                 if (!user || !user.token) return;
-                const response = await fetch(`${API_BASE_URL}/marks/my-marks`, {
-                    headers: { 'Authorization': `Bearer ${user.token}` }
-                });
+                const response = await authenticatedFetch(`${API_BASE_URL}/marks/my-marks`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -104,7 +111,7 @@ const StudentDashboard = () => {
                     } else {
                         // Fetch profile if no marks
                         try {
-                            const profileRes = await fetch(`${API_BASE_URL}/student/profile`, { headers: { 'Authorization': `Bearer ${user.token}` } });
+                            const profileRes = await authenticatedFetch(`${API_BASE_URL}/student/profile`);
                             if (profileRes.ok) {
                                 const s = await profileRes.json();
                                 setStudentInfo(prev => ({
@@ -138,7 +145,7 @@ const StudentDashboard = () => {
         const fetchUpdates = async () => {
             if (!user || !user.token) return;
             try {
-                const subRes = await fetch(`${API_BASE_URL}/student/subjects`, { headers: { 'Authorization': `Bearer ${user.token}` } });
+                const subRes = await authenticatedFetch(`${API_BASE_URL}/student/subjects`);
                 if (subRes.ok) {
                     const subData = await subRes.json();
 
@@ -159,14 +166,14 @@ const StudentDashboard = () => {
                     setRealSubjects(Object.values(mergedSubjects));
                 }
 
-                const annRes = await fetch(`${API_BASE_URL}/cie/student/announcements`, { headers: { 'Authorization': `Bearer ${user.token}` } });
+                const annRes = await authenticatedFetch(`${API_BASE_URL}/cie/student/announcements`);
                 if (annRes.ok) {
                     const anns = await annRes.json();
                     setUpcomingExams(anns.map(a => ({
                         id: a.id, exam: `CIE-${a.cieNumber}`, subject: a.subject?.name || 'Subject', date: a.scheduledDate, time: a.startTime ? a.startTime.substring(0, 5) : 'TBD', duration: a.durationMinutes + ' mins', room: a.examRoom || 'TBD', instructions: a.instructions, syllabus: a.syllabusCoverage
                     })));
                 }
-                const notifRes = await fetch(`${API_BASE_URL}/cie/student/notifications`, { headers: { 'Authorization': `Bearer ${user.token}` } });
+                const notifRes = await authenticatedFetch(`${API_BASE_URL}/cie/student/notifications`);
                 if (notifRes.ok) {
                     const notifs = await notifRes.json();
                     const filteredNotifs = notifs.filter(n => !n.message.includes("Welcome to the IA Management System") && n.type !== 'EXAM_SCHEDULE');
@@ -177,7 +184,7 @@ const StudentDashboard = () => {
                 } else { setNotifications([]); }
             } catch (e) { console.error("Error fetching updates:", e); } finally { setLoadingAnnouncements(false); }
             try {
-                const facRes = await fetch(`${API_BASE_URL}/student/faculty`, { headers: { 'Authorization': `Bearer ${user.token}` } });
+                const facRes = await authenticatedFetch(`${API_BASE_URL}/student/faculty`);
                 if (facRes.ok) { const facData = await facRes.json(); setFacultyList(facData); }
             } catch (e) { console.error("Error fetching faculty:", e); }
         };
@@ -315,16 +322,37 @@ const StudentDashboard = () => {
     // ... (rest of render functions remain mostly same but can benefit from global CSS updates)
 
     const downloadCIEMarks = (subjects, filter) => {
-        let headers = ['Code', 'Subject'];
-        if (filter === 'All') {
-            headers.push('CIE-1', 'Att-1', 'CIE-2', 'Att-2', 'CIE-3', 'Att-3', 'CIE-4', 'Att-4', 'CIE-5', 'Att-5');
-        } else {
-            headers.push(filter, 'Attendance');
-        }
-        headers.push('Total');
+        const doc = new jsPDF();
+        
+        // Add Header
+        doc.setFontSize(18);
+        doc.setTextColor(30, 58, 138); // Academic Blue
+        doc.text('CIE MARKS REPORT', 105, 15, { align: 'center' });
+        
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.text('Sanjay Gandhi Polytechnic', 105, 22, { align: 'center' });
+        
+        // Add Student Info
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Student Name: ${studentInfo.name}`, 14, 35);
+        doc.text(`Registration No: ${studentInfo.rollNo}`, 14, 40);
+        doc.text(`Department: ${studentInfo.branch}`, 14, 45);
+        doc.text(`Semester: ${selectedSemester}`, 14, 50);
+        doc.text(`Internals: ${filter}`, 14, 55);
+        doc.text(`Date of Generation: ${new Date().toLocaleDateString()}`, 14, 60);
 
-        const rows = subjects.map(item => {
-            const row = [item.code, `"${item.subject}"`];
+        let tableHeaders = [['Code', 'Subject']];
+        if (filter === 'All') {
+            tableHeaders[0].push('C1', 'A1', 'C2', 'A2', 'C3', 'A3', 'C4', 'A4', 'C5', 'A5');
+        } else {
+            tableHeaders[0].push('Marks', 'Attendance');
+        }
+        tableHeaders[0].push('Total');
+
+        const tableRows = subjects.map(item => {
+            const row = [item.code, item.subject];
             if (filter === 'All') {
                 row.push(item.cie1, item.cie1Att, item.cie2, item.cie2Att, item.cie3, item.cie3Att, item.cie4, item.cie4Att, item.cie5, item.cie5Att);
             } else {
@@ -337,17 +365,21 @@ const StudentDashboard = () => {
                 row.push(score, att);
             }
             row.push(item.total);
-            return row.join(',');
+            return row;
         });
 
-        const csv = [headers.join(','), ...rows].join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `CIE_Marks_${studentInfo.rollNo}_${filter.replace('-', '_')}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        autoTable(doc, {
+            startY: 70,
+            head: tableHeaders,
+            body: tableRows,
+            theme: 'grid',
+            headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255] },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            styles: { fontSize: 8, cellPadding: 2 },
+            margin: { top: 70 }
+        });
+
+        doc.save(`CIE_Marks_${studentInfo.rollNo}_${filter.replace('-', '_')}.pdf`);
     };
 
     const renderCIEMarks = () => {
@@ -420,7 +452,7 @@ const StudentDashboard = () => {
                                 </select>
                             </div>
                         </div>
-                        <button onClick={() => downloadCIEMarks(theorySubjects, selectedCIE)} className={styles.actionBtn} style={{ padding: '0.5rem 1rem' }}><Download size={16} /> Download CSV</button>
+                        <button onClick={() => downloadCIEMarks(theorySubjects, selectedCIE)} className={styles.actionBtn} style={{ padding: '0.5rem 1rem' }}><FileText size={16} /> Download PDF</button>
                     </div>
                 </div>
 
