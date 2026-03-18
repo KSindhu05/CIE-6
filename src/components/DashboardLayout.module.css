@@ -98,8 +98,10 @@
         margin-left: 0 !important;
         margin-right: 0 !important;
         padding: 1rem;
+        padding-top: 70px;
         height: auto;
-        min-height: calc(100vh - 60px);
+        min-height: 100vh;
+        overflow-x: hidden;
     }
 
     .floatingControls {
@@ -119,5 +121,6 @@
 @media (max-width: 480px) {
     .mainContent {
         padding: 0.75rem;
+        padding-top: 66px;
     }
 }

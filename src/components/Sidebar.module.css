@@ -226,114 +226,171 @@
     background-color: #fef2f2;
 }
 
-/* ===== RESPONSIVE SIDEBAR ===== */
+/* ===== MOBILE HEADER BAR ===== */
+.mobileHeader {
+    display: none;
+}
+
+/* ===== MOBILE OVERLAY ===== */
+.overlay {
+    display: none;
+}
+
+/* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 768px) {
-    .sidebar {
-        width: 100%;
-        height: auto;
-        position: relative;
-        padding: 0.5rem 1rem;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-        flex-direction: row;
+    /* Mobile Header with Hamburger */
+    .mobileHeader {
+        display: flex;
         align-items: center;
         justify-content: space-between;
-        overflow: visible;
-        /* Allow sticky header behavior if needed */
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        background: var(--bg-sidebar, #ffffff);
+        border-bottom: 1px solid var(--border-color, #e2e8f0);
+        padding: 0 1rem;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
 
-    .logoSection {
-        margin-bottom: 0;
-        padding-bottom: 0;
-        border-bottom: none;
-        width: auto;
-        flex-shrink: 0;
-    }
-
-    .sidebarLogo {
-        height: 32px;
-        /* Smaller logo */
-    }
-
-    .logoText {
-        display: none;
-        /* Hide text to save space */
-    }
-
-    .userInfo {
-        display: none;
-        /* Hide profile in sidebar on mobile (assume it's in header) */
-    }
-
-    .nav {
-        flex-direction: row;
-        overflow-x: auto;
-        overflow-y: hidden;
-        gap: 0.5rem;
-        padding-bottom: 0;
-        margin: 0 1rem;
+    .hamburgerBtn {
+        display: flex;
         align-items: center;
-        scrollbar-width: none;
-        /* Firefox */
-        -ms-overflow-style: none;
-        /* IE/Edge */
-    }
-
-    /* Hide Category Headers on Mobile to save space */
-    .categoryHeader {
-        display: none;
-    }
-
-    .nav::-webkit-scrollbar {
-        display: none;
-        /* Chrome/Safari */
-    }
-
-    .navItem {
-        flex: 0 0 auto;
-        /* Don't shrink */
-        padding: 0.5rem 0.75rem;
-        font-size: 0.8rem;
-        border: 1px solid var(--border-color);
-        border-radius: 99px;
-        /* Pill shape for horizontal nav */
-        white-space: nowrap;
-        background: var(--bg-hover);
-    }
-
-    .navItem span {
-        display: block;
-        /* Ensure text is visible */
-    }
-
-    .logoutButton {
-        width: auto;
-        margin-top: 0;
-        border-top: none;
-        padding: 0.5rem;
-        border: 1px solid #fef2f2;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: transparent;
+        color: #1e293b;
+        cursor: pointer;
         border-radius: 8px;
+        transition: background 0.2s;
     }
 
-    .logoutButton span {
-        display: none;
-        /* Hide "Logout" text, show only icon */
+    .hamburgerBtn:hover {
+        background: #f1f5f9;
+    }
+
+    .mobileHeaderLogo {
+        height: 32px;
+        object-fit: contain;
+    }
+
+    .mobileLogoutBtn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: transparent;
+        color: #ef4444;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: background 0.2s, color 0.2s;
+    }
+
+    .mobileLogoutBtn:hover {
+        background: #fef2f2;
+        color: #dc2626;
+    }
+
+    /* Overlay backdrop */
+    .overlay {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1001;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Mobile Sidebar as slide-in drawer */
+    .mobileSidebar {
+        position: fixed;
+        top: 0;
+        left: -300px;
+        width: 280px;
+        height: 100vh;
+        z-index: 1002;
+        border-right: 1px solid var(--border-color, #e2e8f0);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow-y: auto;
+        flex-direction: column;
+    }
+
+    .mobileSidebarOpen {
+        left: 0;
+    }
+
+    /* Keep all contents visible inside mobile drawer */
+    .mobileSidebar .logoSection {
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .mobileSidebar .nav {
+        flex-direction: column;
+        overflow-x: visible;
+        overflow-y: auto;
+        gap: 0.35rem;
+        margin: 0;
+        padding-top: 0.5rem;
+    }
+
+    .mobileSidebar .categoryHeader {
+        display: block;
+    }
+
+    .mobileSidebar .navItem {
+        padding: 0.7rem 1rem;
+        font-size: 0.92rem;
+        border: none;
+        border-radius: 10px;
+        white-space: normal;
+        background: transparent;
+    }
+
+    .mobileSidebar .userInfo {
+        display: flex;
+    }
+
+    .mobileSidebar .logoutButton {
+        width: 100%;
+        margin-top: 0;
+        border-top: 1px solid var(--border-color);
+        padding: 1rem;
+    }
+
+    .mobileSidebar .logoutButton span {
+        display: inline;
     }
 }
 
 @media (max-width: 480px) {
-    .sidebar {
-        padding: 0.5rem;
-    }
-
-    .nav {
-        margin: 0 0.5rem;
+    .mobileHeader {
+        padding: 0 0.75rem;
     }
 }
 
 @media print {
     .sidebar {
+        display: none !important;
+    }
+
+    .mobileHeader {
         display: none !important;
     }
 }
