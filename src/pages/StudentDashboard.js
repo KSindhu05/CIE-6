@@ -454,7 +454,7 @@ const StudentDashboard = () => {
                 <div className={styles.card} style={{ marginBottom: '1.5rem', animationDelay: '0.1s' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                         <div className={styles.selectionRow} style={{ flex: 1 }}>
-                            <div className={styles.selectionGroup}><label className={styles.selectionLabel}>Select Semester:</label><select value={selectedSemester} onChange={(e) => setSelectedSemester(e.target.value)} className={styles.filterSelect}>{[1, 2, 3, 4, 5, 6, 7, 8].map(sem => <option key={sem} value={sem}>Semester {sem}</option>)}</select></div>
+                            <div className={styles.selectionGroup}><label className={styles.selectionLabel}>Select Semester:</label><select value={selectedSemester} onChange={(e) => setSelectedSemester(e.target.value)} className={styles.filterSelect}>{[1, 2, 3, 4, 5, 6].map(sem => <option key={sem} value={sem}>Semester {sem}</option>)}</select></div>
                             <div className={styles.selectionGroup}><label className={styles.selectionLabel}>Select Internals:</label>
                                 <select value={selectedCIE} onChange={(e) => setSelectedCIE(e.target.value)} className={styles.filterSelect}>
                                     <option value="All">All Internals</option>

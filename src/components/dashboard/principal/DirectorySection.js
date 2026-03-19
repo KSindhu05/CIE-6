@@ -322,7 +322,7 @@ export const DirectorySection = memo(({ departments = [], selectedDept, deptStud
                             value={semester}
                             onChange={(e) => setSemester(e.target.value)}
                         >
-                            {['1st', '2nd', '3rd', '4th', '5th'].map(sem => (
+                            {['1st', '2nd', '3rd', '4th', '5th', '6th'].map(sem => (
                                 <option key={sem} value={sem}>{sem} Sem</option>
                             ))}
                         </select>
